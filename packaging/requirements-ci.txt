@@ -1,0 +1,22 @@
+# Exact versions for CI and release builds (pip install -c packaging/requirements-ci.txt -e ".[dev,build]").
+# These are the versions the release build was verified with; Dependabot proposes updates as PRs,
+# and CI tests and builds each one before it can be merged.
+PySide6==6.11.2
+PySide6_Essentials==6.11.2
+PySide6_Addons==6.11.2
+shiboken6==6.11.2
+pyserial==3.5
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
+altgraph==0.17.5
+pefile==2024.8.26
+pywin32-ctypes==0.2.3
+packaging==26.3
+pytest==9.1.1
+pytest-cov==7.1.0
+coverage==7.16.2
+iniconfig==2.3.1
+pluggy==1.6.0
+Pygments==2.21.0
+colorama==0.4.6
+ruff==0.16.10

@@ -1,0 +1,12 @@
+# 文字檔在 repo 內一律存成 LF，取出時依各自的設定轉換。
+* text=auto
+
+# 測試資料是逐位元組比對的擷取與專案檔：.F136 的格式本身就以 CRLF 換行，
+# 不可以讓 git 轉換換行（否則解析與「重建後逐位元組相同」的測試都會失敗）。
+tests/fixtures/** -text
+*.F136 -text
+*.bin binary
+*.bit binary
+
+# Windows 批次檔維持 CRLF
+*.bat text eol=crlf

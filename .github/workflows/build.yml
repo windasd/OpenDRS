@@ -1,0 +1,112 @@
+# 測試 → 打包 Windows 版（PyInstaller，含打包後自我測試）→ 推送 v* 標籤時發佈 GitHub Release。
+# 本機建置用同一支 packaging/build.py，結果與這裡相同。
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  PYTHON_VERSION: "3.13"
+  PYTHONUTF8: "1"
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  test:
+    name: 測試
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/requirements-ci.txt
+      - name: 安裝相依套件（版本固定於 packaging/requirements-ci.txt）
+        run: python -m pip install -c packaging/requirements-ci.txt -e ".[dev,build]"
+      - name: 靜態檢查（語法錯誤、未定義名稱）
+        run: python -m ruff check --isolated --target-version py311 --select E9,F63,F7,F82 src tests packaging
+      - name: 單元測試
+        # 需要原廠韌體或 ambep2.exe 的測試在 CI 上會自動略過。
+        # no:faulthandler：QPrinter 查詢列印服務時的 COM 例外（0x80040155）無害，但 faulthandler 會印出整串堆疊。
+        run: python -m pytest -p no:faulthandler
+
+  build:
+    name: 打包 Windows 版
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          # 不用 pip 快取：發佈用的建置一律從 PyPI 取得固定版本
+      - name: 安裝建置工具（版本固定於 packaging/requirements-ci.txt）
+        run: python -m pip install -c packaging/requirements-ci.txt -e ".[build]"
+      - name: 建置、自我測試、壓縮
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            python packaging/build.py --expect-tag "$GITHUB_REF_NAME"
+          else
+            python packaging/build.py
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: OpenDRS-windows
+          path: |
+            dist/OpenDRS-*-win64.zip
+            dist/OpenDRS-*-win64.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: 發佈 Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # 只有這個不執行建置工具的工作拿得到寫入權限
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: OpenDRS-windows
+          path: dist
+      - name: 確認標籤指向 main 上的 commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$GITHUB_SHA" --jq .status)
+          if [ "$status" != "identical" ] && [ "$status" != "behind" ]; then
+            echo "::error::標籤 $TAG 指向的 commit 不在 main 上（$status），不發佈。"
+            exit 1
+          fi
+      - name: 建立 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          extra=()
+          if [[ "$TAG" =~ (a|b|rc)[0-9]+$ ]]; then extra+=(--prerelease); fi
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "OpenDRS $TAG" --generate-notes "${extra[@]}"

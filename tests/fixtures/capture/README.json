@@ -1,0 +1,43 @@
+{
+  "source": "USBPcap capture 2026-10-08 16:52-16:54, PL2303GC COM4, legacy CPS DRS_V8.1-CH.exe",
+  "project_saved_before_write": "TEST_DH-98VU_20250811.F136",
+  "write_date_text": "10/8/2026 16:54",
+  "files": {
+    "read_cmd.bin": {
+      "len": 31,
+      "md5_10": "cfb6b26071"
+    },
+    "read_reply.bin": {
+      "len": 102,
+      "md5_10": "c4926accf4"
+    },
+    "read_stream.bin": {
+      "len": 14336,
+      "md5_10": "75870cae0e"
+    },
+    "read_checksum.bin": {
+      "len": 13,
+      "md5_10": "0343fabd2e"
+    },
+    "write_cmd.bin": {
+      "len": 31,
+      "md5_10": "9feb15e7da"
+    },
+    "write_reply.bin": {
+      "len": 92,
+      "md5_10": "a424d693a5"
+    },
+    "write_stream.bin": {
+      "len": 14336,
+      "md5_10": "75870cae0e"
+    },
+    "write_radio_tail.bin": {
+      "len": 449,
+      "md5_10": "617c48c7c0"
+    },
+    "read1_stream.bin": {
+      "len": 14336,
+      "md5_10": "85b25f62d7"
+    }
+  }
+}

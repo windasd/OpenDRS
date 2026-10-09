@@ -1,0 +1,15 @@
+# 每週檢查新版並開 PR：workflow 用到的 GitHub Actions（連同固定的 commit SHA），
+# 以及 packaging/requirements-ci.txt 固定的 Python 套件。PR 會先經過 CI 測試與打包。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /packaging
+    schedule:
+      interval: weekly
+    groups:
+      qt:
+        patterns: ["PySide6*", "shiboken6"]
