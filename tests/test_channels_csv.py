@@ -218,3 +218,15 @@ def test_semicolon_files_and_mhz_suffix() -> None:
     result = cc.import_channels(f136.load(DH98), data, CODEC)
     assert not result.errors and result.updated == 1
     assert result.project.channels[zone_channel_rows(result.project, 0)[0]].rx_hz == 439_500_000
+
+
+def test_full_width_digits_and_python_whitespace() -> None:
+    head = ["分區", "頻道", "色碼", "接收MHz", "接收亞音", "發話對象"]
+    row = ["１", "２", "１５", "４３９.５", "８８.５", "１３"]
+    result = cc.import_channels(f136.load(DH98), _csv([head, row]), CODEC)
+    assert not result.errors and result.updated == 1
+    ch = result.project.channels[zone_channel_rows(result.project, 0)[1]]
+    assert (ch.color_code, ch.rx_hz, ch.tx_contact) == (15, 439_500_000, 13)
+    assert cf.tone_label(cf.tone(ch, False)) == "88.5 Hz"
+    superscript = cc.import_channels(f136.load(DH98), _csv([["分區", "頻道", "色碼"], ["1", "1", "²"]]), CODEC)
+    assert superscript.errors[0].startswith("第 2 列「色碼」：無效的選項「²」")  # not int()'s English error

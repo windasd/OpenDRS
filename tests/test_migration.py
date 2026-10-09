@@ -81,3 +81,9 @@ def test_nothing_to_do(appdata: Path) -> None:
     settings.default_dir().mkdir()
     assert settings.migrate_legacy_dir() == ""  # new folder already in use: never overwrite it
     assert (appdata / "DRSCPS" / "settings.json").is_file()
+
+
+@pytest.mark.parametrize("content", ["[]", "3", "null", "{", "\ufeff{}"])
+def test_unusable_settings_file_gives_defaults(tmp_path: Path, content: str) -> None:
+    (tmp_path / "settings.json").write_text(content, encoding="utf-8")
+    assert settings.load_settings(tmp_path) == settings.Settings()

@@ -93,3 +93,9 @@ def test_suggest_codec_for_name_fields() -> None:
 def test_legacy_text_falls_back_without_raising() -> None:
     text, used = read_legacy_text(bytes([0x81, 0xFF, 0x81]))
     assert used in ("cp1252", "latin-1") and text
+
+
+def test_bad_utf16_falls_back_to_other_encodings() -> None:
+    assert read_legacy_text(b"\xff\xfe" + "中".encode("utf-16-le")) == ("中", "utf-16")
+    assert read_legacy_text(b"\xff\xfe\x00\x00odd") == ("ÿþ\x00\x00odd", "cp1252")  # odd length
+    assert read_legacy_text(b"\xfe\xff\xd8\x00") == ("þÿØ\x00", "cp1252")  # lone surrogate

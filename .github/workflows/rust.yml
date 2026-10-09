@@ -1,0 +1,77 @@
+# Rust 重寫分支：Windows／Linux／macOS 各跑格式、clippy（警告視為錯誤）、測試；
+# 另一個工作用 Python 版重新產生比對答案，確認提交的 parity*.json 是最新的。
+name: rust
+
+on:
+  push:
+    branches: [rust-rewrite]
+  pull_request:
+    paths: ["rust/**", "src/**", "tests/fixtures/**", ".github/workflows/rust.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust（${{ matrix.os }}）
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 安裝 libudev（Linux 列出序列埠用）
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
+      - name: 安裝 Rust stable
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt && rustup default stable
+      - name: 格式
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: 測試（含與 Python 版的逐欄比對、實機擷取重播）
+        run: cargo test --workspace --locked
+
+  oracle:
+    name: 比對答案是最新的（Python 3.13.15）
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # 答案裡記著產生它的 Python 與 Unicode 版本；升級時改這裡並重新產生所有答案。
+          python-version: "3.13.15"
+      - name: 安裝 pyserial（產生答案只需要非 GUI 模組）
+        run: python -m pip install "pyserial>=3.5"
+      - name: 重新產生所有比對答案
+        shell: bash
+        env:
+          PYTHONPATH: src
+          PYTHONUTF8: "1"
+        run: |
+          python rust/tools/make_parity.py > rust/opendrs-core/tests/parity.json
+          python rust/tools/make_parity_model.py > rust/opendrs-core/tests/parity_model.json
+          python rust/tools/make_parity_firmware.py > rust/opendrs-firmware/tests/parity.json
+          python rust/tools/make_parity_contacts.py > rust/opendrs-contacts/tests/parity.json
+          python rust/tools/make_parity_contacts.py --tables > rust/opendrs-core/src/pystr_tables.rs
+          python rust/tools/make_codec_tables.py > rust/opendrs-core/src/codec_tables.rs
+      - name: 與提交的版本相同
+        shell: bash
+        run: |
+          git diff --stat --exit-code -- rust ||
+            { echo "::error::Python 版的行為變了：請重新產生上面列出的答案檔並確認 Rust 測試通過"; exit 1; }

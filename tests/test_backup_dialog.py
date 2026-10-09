@@ -109,7 +109,8 @@ def test_parse_name_accepts_only_backup_names() -> None:
     assert parse_name("20261009_141359_read_DRS-8500.F136") == (
         datetime(2026, 10, 9, 14, 13, 59), "read", "DRS-8500")  # noqa: DTZ001
     assert parse_name("20261009_141359_before_write_radio.F136")[1:] == ("before_write", "radio")
-    for name in BYSTANDERS + ("20261009_141359_read_DRS-8500.bin", "20261009_141359_read_.F136"):
+    for name in BYSTANDERS + ("20261009_141359_read_DRS-8500.bin", "20261009_141359_read_.F136",
+                              "20261009_141359_read_X.F136\n", "２０２６1009_141359_read_X.F136"):
         assert parse_name(name) is None, name
     assert list_backups(Path("no such folder")) == []
 

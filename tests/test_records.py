@@ -59,16 +59,28 @@ def test_frequency_must_fit_u32() -> None:
 
 
 @pytest.mark.parametrize(
-    "text, hz", [("438.8", 438_800_000), (" 145.5000 ", 145_500_000), ("436.0125", 436_012_500)]
+    "text, hz", [("438.8", 438_800_000), (" 145.5000 ", 145_500_000), ("436.0125", 436_012_500),
+                 ("４３８.８", 438_800_000), ("1_44.5", 144_500_000), ("-0", 0), ("0E999999999", 0)]
 )
 def test_mhz_parse_is_exact(text: str, hz: int) -> None:
     assert mhz_to_hz(text) == hz
 
 
-@pytest.mark.parametrize("text", ["abc", "438.8000001"])
-def test_mhz_parse_rejects_bad_input(text: str) -> None:
-    with pytest.raises(ValueError):
+@pytest.mark.parametrize("text, message", [
+    ("abc", "無效頻率"), ("438.8000001", "1 Hz"), ("inf", "無效頻率"), ("NaN", "無效頻率"),
+    ("438.80000000000000000000000001", "1 Hz"),  # 29 digits: must not be rounded away
+    ("1E999999999", "無效頻率"),  # must not build a billion-digit int
+    ("1E999999999999999999", "無效頻率"),  # exponent past Decimal's limit once × 10^6
+    ("9223372036854.775808", "無效頻率"),  # 2**63 Hz
+])
+def test_mhz_parse_rejects_bad_input(text: str, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
         mhz_to_hz(text)
+
+
+def test_mhz_parse_keeps_64_bit_range() -> None:
+    assert mhz_to_hz("-9223372036854.775808") == -(2**63)
+    assert mhz_to_hz("9223372036854.775807") == 2**63 - 1
 
 
 def test_hz_to_mhz_format() -> None:

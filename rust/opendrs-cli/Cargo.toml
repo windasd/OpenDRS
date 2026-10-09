@@ -1,0 +1,23 @@
+[package]
+name = "opendrs-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "opendrs-rs"
+path = "src/main.rs"
+
+[features]
+default = ["libudev"]
+# Linux serial-port USB details (see opendrs-core)
+libudev = ["opendrs-core/libudev"]
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive"] }
+opendrs-core = { version = "0.1.0", path = "../opendrs-core", default-features = false }

@@ -107,6 +107,8 @@ def load_settings(directory: Path | None = None) -> Settings:
     path = (directory or default_dir()) / "settings.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("settings.json is not a JSON object")
         return Settings(
             name_codec=NameCodec(data.get("name_codec", NameCodec.BIG5.value)),
             recent_files=tuple(str(p) for p in data.get("recent_files", [])),

@@ -260,13 +260,17 @@ def mhz_to_hz(text: str) -> int:
     from decimal import Decimal, InvalidOperation
 
     try:
-        value = Decimal(text.strip()) * 1_000_000
+        mhz = Decimal(text.strip())
+        if not mhz.is_finite():
+            raise InvalidOperation
+        sign, digits, exponent = mhz.as_tuple()
+        value = Decimal((sign, digits, exponent + 6))  # × 10^6, exact (`*` rounds to 28 digits)
     except InvalidOperation as exc:
         raise ValueError(f"無效頻率「{text}」") from exc
-    if not value.is_finite():
-        raise ValueError(f"無效頻率「{text}」")
     if value != value.to_integral_value():
         raise ValueError("頻率解析度不可小於 1 Hz")
+    if not -(2**63) <= value < 2**63:  # also keeps int() from expanding e.g. 1E999999999
+        raise ValueError(f"無效頻率「{text}」")
     return int(value)
 
 
