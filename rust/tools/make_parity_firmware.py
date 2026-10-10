@@ -3,7 +3,7 @@ IAP images and upgrades against the simulated bootloader, recording frames / rec
 download runs against the simulated recorder, firmware checks and the record-read patch.
 
 Run from the repository root with the Python package importable:
-    PYTHONPATH=src python rust/tools/make_parity_firmware.py > rust/opendrs-firmware/tests/parity.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_firmware.py > rust/opendrs-firmware/tests/parity.json
 
 Scenarios are described as data (image size, simulator settings, transport, cancel pattern, ...) so
 the Rust test can rebuild each one; large byte strings are exported as SHA-256 only.
@@ -27,7 +27,7 @@ from opendrs.recording import RecordClient, RecordInfo, RecordingError
 from opendrs.recording_sim import SimulatedRecorder, demo_records
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 FAST = 0.05  # reply timeouts for runs that are expected to wait for nothing
 
 

@@ -6,7 +6,7 @@ their texts, choices, enabled states and the member editors' initial state; then
 through gui/list_ops.py and records the undo label and resulting image (or the warning).
 
 Run from the repository root (needs PySide6):
-    PYTHONPATH=src python rust/tools/make_parity_pages.py > rust/opendrs-gui/tests/parity_pages.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_pages.py > rust/opendrs-gui/tests/parity_pages.json
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from opendrs.scanlist import SCAN_LIST_SIZE, SCAN_LISTS_OFFSET, scan_lists  # no
 from opendrs.textcodec import NameCodec  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 FIXTURES = ["dh98vu_20250811.F136", "mmdvm_20241124.F136", "mmdvm_20241127.F136", "capture/written_project.F136"]
 CODEC = NameCodec.BIG5
 SEARCHES = ["", "tg466", "frs 1", "ＴＧ", "zzz"]

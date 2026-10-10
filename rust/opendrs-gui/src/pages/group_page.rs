@@ -163,10 +163,8 @@ mod tests {
     use std::path::Path;
 
     fn fixture() -> Project {
-        f136::load(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/dh98vu_20250811.F136"),
-        )
-        .expect("fixture")
+        f136::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/dh98vu_20250811.F136"))
+            .expect("fixture")
     }
 
     #[test]

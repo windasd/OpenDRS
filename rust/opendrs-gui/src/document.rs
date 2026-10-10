@@ -176,7 +176,7 @@ mod tests {
     use super::*;
 
     fn fixture() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/dh98vu_20250811.F136")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/dh98vu_20250811.F136")
     }
 
     #[test]

@@ -7,7 +7,7 @@ on:
   push:
     branches: [rust-rewrite]
   pull_request:
-    paths: ["rust/**", "src/**", "tests/fixtures/**", ".github/workflows/rust.yml"]
+    paths: ["rust/**", ".github/workflows/rust.yml"]
   workflow_dispatch:
 
 permissions:
@@ -95,6 +95,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Python 版已不在這個分支：取出最後一個含 Python 版的 commit（含比對時修正的問題）當標準答案。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: 8aa7c0b2667a474c497792df75997958c9bf63f3
+          path: opendrs-oracle
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           # 答案裡記著產生它的 Python 與 Unicode 版本；升級時改這裡並重新產生所有答案。
@@ -104,7 +110,7 @@ jobs:
       - name: 重新產生所有比對答案
         shell: bash
         env:
-          PYTHONPATH: src
+          PYTHONPATH: opendrs-oracle/src
           PYTHONUTF8: "1"
         run: |
           python rust/tools/make_parity.py > rust/opendrs-core/tests/parity.json

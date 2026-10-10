@@ -1,7 +1,8 @@
 # OpenDRS — Rust 重寫（實驗分支 `rust-rewrite`）
 
-把 Python 版（`src/opendrs`）逐模組移植到 Rust，目標是 **Windows、macOS、Linux 都能用**。
-Python 版保留在同一個分支當「標準答案」：Rust 版的每個結果都和它比對，必須逐位元組相同。
+把 Python 版逐模組移植到 Rust，目標是 **Windows、macOS、Linux 都能用**。這個分支只放 Rust 版；
+Python 版在 `main` 分支，並以本分支最後一個含 Python 版的 commit `8aa7c0b` 當「標準答案」：
+Rust 版的每個結果都和它比對，必須逐位元組相同（見「怎麼確認和 Python 版一樣」）。測試資料在 `rust/fixtures/`。
 
 ## 現況：三個階段都已移植（視窗程式、指令列工具、所有非 GUI 模組）
 
@@ -128,13 +129,18 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
    | `make_parity_contacts.py --tables` | `opendrs-core/src/pystr_tables.rs` | Python 的 Unicode 表（空白、大小寫折疊、數字、可列印字元） |
    | `make_codec_tables.py` | `opendrs-core/src/codec_tables.rs` | Python 的 `big5`／`gbk` 編碼表（名稱欄位的編碼、解碼都用它） |
 
-   Python 版有改動時，從工作樹根目錄重新產生（以 parity.json 為例）：
+   產生器需要 Python 版的原始碼（需要 `pyserial`；GUI 的兩個產生器與 `make_icons.py` 另需 PySide6）。
+   先在旁邊取出標準答案的那個 commit，再從本分支的根目錄重新產生（以 parity.json 為例）：
 
    ```
-   set PYTHONPATH=src
+   git worktree add ..\opendrs-oracle 8aa7c0b
+   set PYTHONPATH=..\opendrs-oracle\src
    set PYTHONUTF8=1
-   ..\opendrs\.venv\Scripts\python rust\tools\make_parity.py > rust\opendrs-core\tests\parity.json
+   python rust\tools\make_parity.py > rust\opendrs-core\tests\parity.json
    ```
+
+   CI 的比對答案工作做同樣的事，確認提交的答案檔是最新的。Python 版之後若有行為改變，取出新的 commit 重新產生、
+   確認 Rust 測試通過，並更新 `.github/workflows/rust.yml` 裡的 commit。
 
 2. **實機擷取重播**（`opendrs-core/tests/capture.rs`）：2026-10-08 舊寫頻軟體讀寫實機的 USB 擷取，Rust 版送出的每個位元組
    都必須和舊軟體相同，並能正確解讀對講機的每個回覆。IAP 升級也和廠商工具的傳送內容逐位元組比對。
@@ -142,7 +148,7 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
 
 ## 移植時順便修正的 Python 版問題
 
-比對時發現的 Python 版問題，兩邊一起修（`main` 分支的工作樹也已套用、尚未提交）：
+比對時發現的 Python 版問題，兩邊一起修（`8aa7c0b` 已包含；`main` 分支的工作樹也已套用、尚未提交）：
 
 - `mhz_to_hz`：超過 28 位有效數字時會被四捨五入；`1E999999999` 這類輸入會建出十億位的整數而卡住，
   `1E999999999999999999` 會丟出未處理的例外。現在精確換算，超出 64 位元的值視為無效頻率。

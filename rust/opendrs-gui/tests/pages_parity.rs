@@ -29,7 +29,7 @@ fn oracle() -> Value {
 fn load(variant: &Value) -> Project {
     let name = variant["fixture"].as_str().expect("fixture");
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures")
+        .join("../fixtures")
         .join(name);
     let mut project = f136::load(path).expect("fixture");
     for patch in variant["patches"].as_array().expect("patches") {

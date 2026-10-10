@@ -16,7 +16,7 @@ use opendrs_gui::radio::{SIMULATED, SIMULATED_LABEL};
 const WAIT: Duration = Duration::from_secs(30);
 
 fn fixtures() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures")
 }
 
 /// The radio of the 2026-10-08 capture.

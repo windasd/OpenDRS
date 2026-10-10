@@ -5,7 +5,7 @@ filter proxy (gui/record_filter.py): every cell's text, sort key, editor value a
 the choices of every drop-down, filtered/sorted row orders, and the outcome of cell edits.
 
 Run from the repository root (needs PySide6):
-    PYTHONPATH=src python rust/tools/make_parity_gui.py > rust/opendrs-gui/tests/parity_table.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_gui.py > rust/opendrs-gui/tests/parity_table.json
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from opendrs.gui.record_filter import RecordFilterProxy, kind_filter  # noqa: E4
 from opendrs.textcodec import NameCodec  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 FIXTURES = ["dh98vu_20250811.F136", "mmdvm_20241124.F136", "mmdvm_20241127.F136", "capture/written_project.F136"]
 CODEC = NameCodec.BIG5
 DISPLAY = Qt.ItemDataRole.DisplayRole

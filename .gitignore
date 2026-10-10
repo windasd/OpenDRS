@@ -1,19 +1,11 @@
-# Python
+# 建置與打包輸出（cargo、cargo xtask dist）
+target/
+target-*/
+dist/
+
+# 比對答案產生器（Python）的快取
 __pycache__/
 *.py[cod]
-*.egg-info/
-.venv/
-venv/
-
-# 測試與工具快取
-.pytest_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# 打包輸出（packaging/build.py）
-build/
-dist/
 
 # 編輯器
 .vscode/

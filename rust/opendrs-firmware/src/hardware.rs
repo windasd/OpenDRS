@@ -5,7 +5,7 @@
 //! model number `DR8600` (codeplug image +0x70 / +0x20) and the firmware ID
 //! `308E.<chip>TARSCB.003` — so the brand on the front panel cannot be told from the radio's
 //! data. HORA DH-98VU is a re-badged Kydera DR-8500UV (same vendor firmware files; the reference
-//! project `tests/fixtures/dh98vu_20250811.F136` holds exactly these identifiers).
+//! project `rust/fixtures/dh98vu_20250811.F136` holds exactly these identifiers).
 
 use opendrs_core::pystr::strip;
 

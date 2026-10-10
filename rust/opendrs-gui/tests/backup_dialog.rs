@@ -22,7 +22,7 @@ const BROKEN: &str = "20261004_090000_read_DR-8500UV";
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures")
+        .join("../fixtures")
         .join(name)
 }
 

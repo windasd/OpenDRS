@@ -9,7 +9,7 @@ use opendrs_gui::pages::Tab;
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures")
+        .join("../fixtures")
         .join(name)
 }
 

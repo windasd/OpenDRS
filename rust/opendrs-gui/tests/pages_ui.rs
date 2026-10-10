@@ -23,7 +23,7 @@ const PAGES: [Tab; 5] = [
 ];
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/dh98vu_20250811.F136")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/dh98vu_20250811.F136")
 }
 
 /// A fresh scratch folder for the app's settings; removed when dropped.

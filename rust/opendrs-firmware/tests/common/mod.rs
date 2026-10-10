@@ -16,7 +16,7 @@ use opendrs_firmware::sha256_hex;
 use serde_json::{Value, json};
 
 pub fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures")
 }
 
 /// The folder above the repository checkout, where the Python tests look for the vendor files.

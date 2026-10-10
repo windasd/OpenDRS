@@ -11,8 +11,8 @@ and every stroke icon of `theme._ICONS` (toolbar, problem list) as
 `opendrs-gui/assets/icons/<name>.svg`, drawn as `theme.icon` draws it but in white, so the egui
 version can tint it with the theme's colour.
 
-Run from the repository root (needs PySide6):
-    PYTHONPATH=src python rust/tools/make_icons.py
+Run from the repository root with the Python version on PYTHONPATH (needs PySide6):
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_icons.py
 """
 
 from __future__ import annotations

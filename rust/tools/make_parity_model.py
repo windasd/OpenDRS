@@ -6,7 +6,7 @@ Each case is (op, args, out); the Rust test (opendrs-core/tests/parity_model.rs)
 with the same args and compares.
 
 Run from the repository root with the Python package importable:
-    PYTHONPATH=src python rust/tools/make_parity_model.py > rust/opendrs-core/tests/parity_model.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_model.py > rust/opendrs-core/tests/parity_model.json
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from opendrs import radio_settings as rs
 from opendrs.textcodec import NameCodec
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 FIXTURES = ["dh98vu_20250811.F136", "mmdvm_20241124.F136", "mmdvm_20241127.F136", "capture/written_project.F136"]
 CODEC = NameCodec.BIG5
 I64_MAX = 2**63 - 1

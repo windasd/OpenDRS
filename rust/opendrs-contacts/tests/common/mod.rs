@@ -20,7 +20,7 @@ pub const SAMPLES: [&str; 3] = [
 pub const SMALL: &str = "mmdvm_20241127.F136";
 
 pub fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures")
 }
 
 pub fn load(name: &str) -> Project {

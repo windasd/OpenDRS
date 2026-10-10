@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 const CODEC: NameCodec = NameCodec::Big5;
 
 fn fixtures() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures")
 }
 
 fn oracle() -> Value {

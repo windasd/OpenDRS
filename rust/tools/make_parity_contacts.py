@@ -2,11 +2,11 @@
 as the oracle of the Rust crate opendrs-contacts.
 
 Run from the repository root with the Python package importable:
-    PYTHONPATH=src python rust/tools/make_parity_contacts.py > rust/opendrs-contacts/tests/parity.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_contacts.py > rust/opendrs-contacts/tests/parity.json
 
 With ``--tables`` it prints the Unicode tables the Rust port uses to reproduce Python's str
 methods (isspace, isprintable, casefold, int() digits, categories Cc/Cf) instead:
-    PYTHONPATH=src python rust/tools/make_parity_contacts.py --tables > rust/opendrs-core/src/pystr_tables.rs
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity_contacts.py --tables > rust/opendrs-core/src/pystr_tables.rs
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ from opendrs.records import Contact
 from opendrs.textcodec import NameCodec
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 FIXTURES = ("dh98vu_20250811.F136", "mmdvm_20241124.F136", "mmdvm_20241127.F136")
 CODECS = (NameCodec.BIG5, NameCodec.GBK, NameCodec.ASCII)
 MAX_CP = 0x110000

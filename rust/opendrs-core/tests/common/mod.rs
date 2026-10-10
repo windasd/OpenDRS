@@ -9,7 +9,7 @@ use opendrs_core::codeplug::BLOCK;
 use opendrs_core::radio_link::{RadioError, Transport, bytes_repr};
 
 pub fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures")
 }
 
 pub fn cap(name: &str) -> Vec<u8> {

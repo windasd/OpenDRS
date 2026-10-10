@@ -1,7 +1,7 @@
 """Export what the Python implementation computes for every fixture, as the Rust port's oracle.
 
 Run from the repository root with the Python package importable:
-    PYTHONPATH=src python rust/tools/make_parity.py > rust/opendrs-core/tests/parity.json
+    PYTHONPATH=../opendrs-oracle/src python rust/tools/make_parity.py > rust/opendrs-core/tests/parity.json
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from opendrs.records import hz_to_mhz, mhz_to_hz
 from opendrs.textcodec import NameCodec
 
 ROOT = Path(__file__).resolve().parents[2]
-FIX = ROOT / "tests" / "fixtures"
+FIX = ROOT / "rust" / "fixtures"
 CODECS = (NameCodec.BIG5, NameCodec.GBK, NameCodec.ASCII)
 
 
