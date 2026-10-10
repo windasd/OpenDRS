@@ -6,14 +6,14 @@
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
-use opendrs_core::codeplug::{self, Counts, DATE_FORMAT};
+use opendrs_core::codeplug::{self, Counts};
 use opendrs_core::f136::{self, Project};
-use opendrs_core::radio_link::{
-    self, RadioClient, RadioIdentity, ReadResult, SerialTransport, Transport, identity_mismatch,
-};
+use opendrs_core::radio_link::{self, SerialTransport, Transport};
+use opendrs_core::radio_session::{PAUSE_BETWEEN_COMMANDS, RadioSession, Status, WriteOutcome};
 use opendrs_core::radio_sim::SimulatedRadio;
 use opendrs_core::records::hz_to_mhz;
 use opendrs_core::textcodec::{self, NameCodec};
@@ -123,21 +123,11 @@ fn load(path: &Path) -> Result<Project> {
     f136::load(path).with_context(|| format!("無法讀取 {}", path.display()))
 }
 
-fn name_fields(project: &Project) -> Vec<&[u8]> {
-    project
-        .contacts
-        .iter()
-        .map(|c| c.name_field())
-        .chain(project.zones.iter().map(|z| z.name_field()))
-        .chain(project.channels.iter().map(|c| c.name_field()))
-        .collect()
-}
-
 /// The codec asked for, else the one the names look like, else Big5.
 fn codec_for(project: &Project, asked: Option<Codec>) -> NameCodec {
     asked
         .map(NameCodec::from)
-        .or_else(|| textcodec::suggest_codec(&name_fields(project)))
+        .or_else(|| textcodec::suggest_codec(&project.name_fields()))
         .unwrap_or(NameCodec::Big5)
 }
 
@@ -272,8 +262,12 @@ fn ports() -> Result<()> {
 
 // ------------------------------------------------------------------ radio
 
+fn is_simulated(args: &RadioArgs) -> bool {
+    args.port.eq_ignore_ascii_case("sim")
+}
+
 fn open_transport(args: &RadioArgs) -> Result<Box<dyn Transport>> {
-    if args.port.eq_ignore_ascii_case("sim") {
+    if is_simulated(args) {
         let radio = match &args.sim_from {
             Some(path) => {
                 let project = load(path)?;
@@ -302,44 +296,46 @@ fn backup_dir(args: &RadioArgs) -> PathBuf {
         .unwrap_or_else(opendrs_core::paths::backups_dir)
 }
 
-fn read_radio(
-    transport: &mut dyn Transport,
+/// A session printing the CLI's own lines: each backup, and (for a write) the read before it.
+fn session<'a>(
+    transport: &'a mut dyn Transport,
     args: &RadioArgs,
-    kind: &str,
-) -> Result<(ReadResult, PathBuf)> {
-    let result = RadioClient::with_progress(transport, progress).read_codeplug()?;
-    let stamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    let backup = radio_link::save_backup(&result, &backup_dir(args), kind, &stamp)
-        .context("無法保存備份")?;
-    eprintln!(
-        "已讀取：{}　備份：{}",
-        result.identity.summary(),
-        backup.display()
-    );
-    Ok((result, backup))
+    announce_backing_up: bool,
+) -> RadioSession<'a> {
+    let pause = if is_simulated(args) {
+        Duration::ZERO
+    } else {
+        PAUSE_BETWEEN_COMMANDS
+    };
+    RadioSession::new(transport, backup_dir(args))
+        .with_port_label(args.port.as_str())
+        .with_progress(progress)
+        .with_pause(pause)
+        .with_status(move |status| match status {
+            Status::BackingUp if announce_backing_up => {
+                eprintln!("寫入前先讀取對講機目前的設定並備份…");
+            }
+            Status::Read { identity, backup } | Status::BackedUp { identity, backup } => {
+                eprintln!("已讀取：{}　備份：{}", identity.summary(), backup.display());
+            }
+            _ => {}
+        })
 }
 
 fn read(args: &RadioArgs, out: &Path) -> Result<()> {
     let mut transport = open_transport(args)?;
-    let (result, _) = read_radio(transport.as_mut(), args, "read")?;
-    std::fs::write(out, f136::serialize(&result.project))
+    let outcome = session(transport.as_mut(), args, false).read()?;
+    std::fs::write(out, f136::serialize(&outcome.read.project))
         .with_context(|| format!("無法寫入 {}", out.display()))?;
     println!("已存成 {}", out.display());
     Ok(())
 }
 
-fn write_project(transport: &mut dyn Transport, project: &Project) -> Result<String> {
-    let date_text = chrono::Local::now().format(DATE_FORMAT).to_string();
-    let check = |identity: &RadioIdentity| identity_mismatch(project, identity);
-    let result = RadioClient::with_progress(transport, progress).write_codeplug(
-        project,
-        Some(&date_text),
-        Some(&check),
-    )?;
-    Ok(format!(
-        "寫入完成，對講機確認校驗和 0x{:08X}；對講機時鐘已設為 {date_text}。",
-        result.checksum
-    ))
+fn written_text(outcome: &WriteOutcome) -> String {
+    format!(
+        "寫入完成，對講機確認校驗和 0x{:08X}；對講機時鐘已設為 {}。",
+        outcome.written.checksum, outcome.date_text
+    )
 }
 
 fn write(args: &RadioArgs, file: &Path, yes: bool) -> Result<()> {
@@ -352,19 +348,8 @@ fn write(args: &RadioArgs, file: &Path, yes: bool) -> Result<()> {
         bail!("寫入會覆蓋對講機目前的設定。確認無誤後請加上 --yes 再執行。");
     }
     let mut transport = open_transport(args)?;
-    eprintln!("寫入前先讀取對講機目前的設定並備份…");
-    let (before, _) = read_radio(transport.as_mut(), args, "before_write")?;
-    if let Some(reason) = identity_mismatch(&project, &before.identity) {
-        bail!("已中止，未寫入任何資料：{reason}");
-    }
-    std::thread::sleep(std::time::Duration::from_millis(
-        if args.port.eq_ignore_ascii_case("sim") {
-            0
-        } else {
-            1500
-        },
-    ));
-    println!("{}", write_project(transport.as_mut(), &project)?);
+    let outcome = session(transport.as_mut(), args, true).write(&project)?;
+    println!("{}", written_text(&outcome));
     Ok(())
 }
 
@@ -373,15 +358,7 @@ fn clock(args: &RadioArgs, yes: bool) -> Result<()> {
         bail!("校正時鐘會把讀到的設定原樣寫回對講機。確認後請加上 --yes 再執行。");
     }
     let mut transport = open_transport(args)?;
-    let (before, _) = read_radio(transport.as_mut(), args, "before_write")?;
-    let project = radio_link::clock_write_project(&before)?;
-    std::thread::sleep(std::time::Duration::from_millis(
-        if args.port.eq_ignore_ascii_case("sim") {
-            0
-        } else {
-            1500
-        },
-    ));
-    println!("{}", write_project(transport.as_mut(), &project)?);
+    let outcome = session(transport.as_mut(), args, false).sync_clock()?;
+    println!("{}", written_text(&outcome));
     Ok(())
 }

@@ -32,6 +32,7 @@ from ..cleanup import scan
 from ..diff import diff_projects
 from ..f136 import F136FormatError, Project
 from ..history import History
+from ..records import NAME_SIZE
 from ..settings import Settings, load_settings, save_settings
 from ..textcodec import NameCodec, suggest_codec
 from . import theme
@@ -488,7 +489,8 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         self._source = ""
         for page in self._pages.values():
             page.reset()
-        guessed = suggest_codec([r.raw for r in (*project.channels, *project.zones, *project.contacts)])
+        guessed = suggest_codec([r.raw[r.NAME_OFFSET:r.NAME_OFFSET + NAME_SIZE]
+                                 for r in (*project.channels, *project.zones, *project.contacts)])
         if guessed is not None and guessed is not self.codec:
             self._codec_box.setCurrentIndex(list(NameCodec).index(guessed))
         self._settings = self._settings.with_recent(str(path))

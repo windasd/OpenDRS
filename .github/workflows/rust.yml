@@ -32,9 +32,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: 安裝 libudev（Linux 列出序列埠用）
+      - name: 安裝 libudev 與視窗程式庫（Linux 列出序列埠、egui 視窗用）
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libudev-dev
+          libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: 安裝 Rust stable
         run: rustup toolchain install stable --profile minimal --component clippy,rustfmt && rustup default stable
       - name: 格式
@@ -56,8 +58,8 @@ jobs:
         with:
           # 答案裡記著產生它的 Python 與 Unicode 版本；升級時改這裡並重新產生所有答案。
           python-version: "3.13.15"
-      - name: 安裝 pyserial（產生答案只需要非 GUI 模組）
-        run: python -m pip install "pyserial>=3.5"
+      - name: 安裝 pyserial 與 PySide6（GUI 答案用真正的 Qt 元件離屏產生）
+        run: python -m pip install "pyserial>=3.5" "PySide6==6.11.2"
       - name: 重新產生所有比對答案
         shell: bash
         env:
@@ -70,6 +72,8 @@ jobs:
           python rust/tools/make_parity_contacts.py > rust/opendrs-contacts/tests/parity.json
           python rust/tools/make_parity_contacts.py --tables > rust/opendrs-core/src/pystr_tables.rs
           python rust/tools/make_codec_tables.py > rust/opendrs-core/src/codec_tables.rs
+          python rust/tools/make_parity_gui.py > rust/opendrs-gui/tests/parity_table.json
+          python rust/tools/make_parity_pages.py > rust/opendrs-gui/tests/parity_pages.json
       - name: 與提交的版本相同
         shell: bash
         run: |

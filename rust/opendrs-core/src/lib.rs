@@ -23,6 +23,7 @@ pub mod pystr;
 mod pystr_tables;
 pub mod quickmsg;
 pub mod radio_link;
+pub mod radio_session;
 pub mod radio_settings;
 pub mod radio_sim;
 pub mod records;

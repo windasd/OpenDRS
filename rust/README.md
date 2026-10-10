@@ -3,7 +3,7 @@
 把 Python 版（`src/opendrs`）逐模組移植到 Rust，目標是 **Windows、macOS、Linux 都能用**。
 Python 版保留在同一個分支當「標準答案」：Rust 版的每個結果都和它比對，必須逐位元組相同。
 
-## 現況：第一、二階段完成（除 GUI 外的功能都已移植）
+## 現況：三個階段都已移植（視窗程式、指令列工具、所有非 GUI 模組）
 
 | crate | 內容（對應的 Python 模組） |
 |---|---|
@@ -11,8 +11,9 @@ Python 版保留在同一個分支當「標準答案」：Rust 版的每個結�
 | `opendrs-firmware` | IAP 韌體升級 `iap`／`iap_sim`、錄音讀取 `recording`／`recording_sim`（含 AMBE+2 解碼呼叫與 WAV）、韌體檢查 `firmware_check`、錄音讀取修補 `fwpatch`、支援機型 `hardware` |
 | `opendrs-contacts` | RadioID.net 資料庫下載／快取／搜尋 `radioid`、匯入成聯絡人 `contact_import`、聯絡人 CSV `contacts_csv` |
 | `opendrs-cli` | 指令列工具 `opendrs-rs`（見下） |
+| `opendrs-gui` | 視窗程式 `opendrs`（egui／eframe）：主視窗、九個頁面、讀寫頻、韌體升級、錄音、RadioID 匯入、備份管理、批次新增、比較專案、列印（`gui/` 全部；見 `opendrs-gui/PORTING.md`） |
 
-尚未移植：GUI（第三階段）、列印、軟體更新。
+尚未移植：軟體更新檢查、打包（PyInstaller 版的 `build.py` 與自我檢查）、工具列圖示。
 
 指令列工具 `opendrs-rs`：
 
@@ -28,7 +29,7 @@ opendrs-rs clock --port COM4 --yes                      校正對講機時鐘
 ```
 
 `--port sim`（可加 `--sim-from 專案.F136` 當模擬對講機的內容）不接實機也能試整個流程。
-**Rust 版的讀寫、韌體升級、錄音讀取都還沒在實機驗證**；實機請先用 Python 版。
+**Rust 版（指令列與視窗程式）的讀寫、韌體升級、錄音讀取都還沒在實機驗證**；實機請先用 Python 版。
 
 ## 跨平台
 
@@ -49,8 +50,9 @@ opendrs-rs clock --port COM4 --yes                      校正對講機時鐘
 
 ```
 cd rust
-cargo build --release          # target/release/opendrs-rs(.exe)
-cargo test --workspace         # 182 項測試
+cargo build --release          # target/release/opendrs(.exe) 視窗程式、opendrs-rs(.exe) 指令列
+cargo run --release -p opendrs-gui -- 專案.F136
+cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 ```
@@ -115,11 +117,16 @@ GitHub Actions（`.github/workflows/rust.yml`）在 Windows、Ubuntu、macOS 上
   再改用預設值；Python 版直接覆寫。
 - 頻道 CSV 的引用欄位寫超過 4300 位數的編號時，Python 版回報 `int()` 的英文限制訊息，Rust 版回報「編號不存在」。
 
-## 下一步：第三階段 GUI（egui／eframe）
+## 第三階段：視窗程式（egui／eframe）
 
-- 框架：**egui + eframe**——目前下載量最大的純 Rust GUI，三個平台都只需 Rust 工具鏈，單一執行檔。
-- 中文字型：不附字型檔，啟動時從系統載入（Windows `msjh.ttc`／`mingliu.ttc`、macOS `PingFang.ttc`、
-  Linux 透過 fontconfig 找 Noto Sans CJK），找不到時提示使用者。
-- 頻道表、聯絡人表用 `egui_extras::TableBuilder`；`channels_csv::FIELDS` 的 `text`／`apply` 直接當表格欄位的顯示與編輯，
-  每次專案改變時建一個 `channels_csv::View`（引用欄位的名稱只解碼一次，表格每格每幀都能直接用）。
-- 讀寫頻、韌體升級、錄音下載在背景執行緒進行，以 `History` 做復原／重做。
+- 框架：**egui + eframe 0.36**——純 Rust，三個平台都只需 Rust 工具鏈，單一執行檔；檔案對話框用 `rfd`。
+- 中文字型：不附字型檔，啟動時從系統載入（Windows 微軟正黑體／細明體、macOS 蘋方／黑體、Linux 透過 fontconfig 找 Noto Sans CJK 或文泉驛），
+  另載入符號字型（✔ ⚠ ␍␊ 等）；找不到時狀態列提示，可用環境變數 `OPENDRS_FONT` 指定字型檔。
+- 每段文字、確認問題、復原標籤都照 Python 版；不同之處列在 `opendrs-gui/PORTING.md` 第 4 節（主要是對話框改為非模式視窗，
+  以及列印改用系統瀏覽器、PDF 用無頭 Edge／Chrome 產生）。
+- 讀寫頻在背景執行緒進行，流程（先讀取並備份、機型／頻段不符中止、寫入時再檢查）是 `opendrs_core::radio_session`，與指令列共用；
+  傳輸中停用編輯、禁止關閉視窗，主視窗讀寫頻、韌體升級、錄音下載同時只能有一個。連接埠選單最後一項「模擬對講機（試用）」不接實機也能試。
+- 測試：`opendrs-gui/tests/parity_table.json`（`tools/make_parity_gui.py`）與 `parity_pages.json`（`tools/make_parity_pages.py`）
+  用 PySide6 在離屏模式建出真正的 Qt 元件，記下每一格的文字、選項、啟用狀態、編輯結果與列印報告，Rust 版逐項比對；
+  `egui_kittest` 無視窗地操作整個視窗（雙擊編輯、讀寫模擬對講機、各對話框），全部用暫存資料夾、不開實體序列埠。
+  `cargo test -p opendrs-gui -- --ignored` 另外輸出畫面截圖到 `target/gui-screens/` 並試產 PDF。

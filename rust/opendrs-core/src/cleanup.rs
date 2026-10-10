@@ -50,7 +50,8 @@ pub fn clean_field(field: &[u8]) -> Vec<u8> {
     out
 }
 
-fn needs_cleaning_field(field: &[u8]) -> bool {
+/// The name field has line breaks or other control characters before its padding.
+pub fn needs_cleaning(field: &[u8]) -> bool {
     field[..body_len(field)].iter().any(|b| is_control(*b))
 }
 
@@ -95,17 +96,17 @@ pub fn scan(project: &Project) -> CleanupReport {
         contacts: project
             .contacts
             .iter()
-            .filter(|c| needs_cleaning_field(c.name_field()))
+            .filter(|c| needs_cleaning(c.name_field()))
             .count(),
         zones: project
             .zones
             .iter()
-            .filter(|z| needs_cleaning_field(z.name_field()))
+            .filter(|z| needs_cleaning(z.name_field()))
             .count(),
         channels: project
             .channels
             .iter()
-            .filter(|c| needs_cleaning_field(c.name_field()))
+            .filter(|c| needs_cleaning(c.name_field()))
             .count(),
     }
 }

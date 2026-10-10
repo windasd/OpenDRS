@@ -3,8 +3,8 @@
 
 mod common;
 
-use common::{ReplayTransport, cap};
-use opendrs_core::codeplug::{BLOCK, Counts, build_stream, parse_stream, with_synced_image};
+use common::{ReplayTransport, cap, read_exchanges, write_exchanges};
+use opendrs_core::codeplug::{Counts, build_stream, parse_stream, with_synced_image};
 use opendrs_core::f136;
 use opendrs_core::radio_link::{RadioClient, byte_sum};
 use opendrs_core::textcodec::NameCodec;
@@ -102,31 +102,6 @@ fn read_then_write_round_trip_and_legacy_projects_are_consistent() {
         let project = f136::load(common::fixtures().join(name)).unwrap();
         assert_eq!(with_synced_image(&project), project, "{name}");
     }
-}
-
-fn read_exchanges() -> Vec<(Vec<u8>, Vec<u8>)> {
-    let stream = cap("read_stream.bin");
-    let mut ex = vec![(cap("read_cmd.bin"), cap("read_reply.bin"))];
-    ex.extend(stream.chunks(BLOCK).map(|b| (b"Read".to_vec(), b.to_vec())));
-    if let Some(last) = ex.last_mut() {
-        last.1.extend(cap("read_checksum.bin"));
-    }
-    ex
-}
-
-fn write_exchanges() -> Vec<(Vec<u8>, Vec<u8>)> {
-    let stream = cap("write_stream.bin");
-    let tail = cap("write_radio_tail.bin");
-    let acks = tail[..30].windows(5).filter(|w| *w == b"Write").count();
-    let blocks: Vec<&[u8]> = stream.chunks(BLOCK).collect();
-    let mut ex = vec![(cap("write_cmd.bin"), cap("write_reply.bin"))];
-    ex.extend(
-        blocks[..blocks.len() - 1]
-            .iter()
-            .map(|b| (b.to_vec(), b"Write".to_vec())),
-    );
-    ex.push((blocks[blocks.len() - 1].to_vec(), tail[5 * acks..].to_vec()));
-    ex
 }
 
 #[test]

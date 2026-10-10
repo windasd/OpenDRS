@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::cap;
+use common::{Silent, cap};
 use opendrs_core::codeplug::{Counts, with_synced_image};
 use opendrs_core::radio_link::{RadioClient, RadioError, clock_write_project};
 use opendrs_core::radio_sim::SimulatedRadio;
@@ -155,35 +155,6 @@ fn clock_rewrite_needs_a_byte_exact_rebuild() {
             .to_string()
             .contains("未寫入任何資料")
     );
-}
-
-/// A line where nothing ever answers.
-struct Silent;
-
-impl opendrs_core::radio_link::Transport for Silent {
-    fn write(&mut self, _data: &[u8]) -> Result<(), RadioError> {
-        Ok(())
-    }
-    fn read_exact(
-        &mut self,
-        n: usize,
-        _timeout: std::time::Duration,
-    ) -> Result<Vec<u8>, RadioError> {
-        Err(RadioError::Timeout {
-            message: format!("等待對講機回應逾時（預期 {n} bytes，收到 0）"),
-            received: 0,
-        })
-    }
-    fn read_idle(
-        &mut self,
-        _i: std::time::Duration,
-        _m: std::time::Duration,
-    ) -> Result<Vec<u8>, RadioError> {
-        Ok(Vec::new())
-    }
-    fn reset_input(&mut self) -> Result<(), RadioError> {
-        Ok(())
-    }
 }
 
 #[test]

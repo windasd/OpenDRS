@@ -18,6 +18,5 @@ libudev = ["opendrs-core/libudev"]
 
 [dependencies]
 anyhow = "1.0.104"
-chrono = "0.4.45"
 clap = { version = "4.6.7", features = ["derive"] }
 opendrs-core = { version = "0.1.0", path = "../opendrs-core", default-features = false }

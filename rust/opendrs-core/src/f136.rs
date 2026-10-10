@@ -112,14 +112,20 @@ impl Project {
         out
     }
 
-    pub fn names_decodable(&self, codec: NameCodec) -> bool {
-        let fields = self
-            .contacts
+    /// Every name field: contacts, then zones, then channels.
+    pub fn name_fields(&self) -> Vec<&[u8]> {
+        self.contacts
             .iter()
             .map(Contact::name_field)
             .chain(self.zones.iter().map(Zone::name_field))
-            .chain(self.channels.iter().map(Channel::name_field));
-        !fields
+            .chain(self.channels.iter().map(Channel::name_field))
+            .collect()
+    }
+
+    pub fn names_decodable(&self, codec: NameCodec) -> bool {
+        !self
+            .name_fields()
+            .into_iter()
             .map(|f| crate::textcodec::display_name(f, codec))
             .any(|n| n.starts_with('‹'))
     }

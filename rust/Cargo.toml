@@ -1,5 +1,5 @@
 [workspace]
-members = ["opendrs-core", "opendrs-firmware", "opendrs-contacts", "opendrs-cli"]
+members = ["opendrs-core", "opendrs-firmware", "opendrs-contacts", "opendrs-cli", "opendrs-gui"]
 resolver = "2"
 
 [workspace.package]

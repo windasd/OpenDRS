@@ -1,0 +1,33 @@
+[package]
+name = "opendrs-gui"
+description = "OpenDRS desktop editor (egui)"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "opendrs"
+path = "src/main.rs"
+
+[features]
+default = ["libudev"]
+# Listing serial ports on Linux needs libudev.
+libudev = ["opendrs-core/libudev"]
+
+[dependencies]
+# Local time of the RadioID download (as the core crate formats backup times).
+chrono = "0.4.45"
+eframe = "0.36.2"
+egui_extras = "0.36.2"
+opendrs-contacts = { version = "0.1.0", path = "../opendrs-contacts" }
+opendrs-core = { version = "0.1.0", path = "../opendrs-core", default-features = false }
+opendrs-firmware = { version = "0.1.0", path = "../opendrs-firmware" }
+rfd = "0.17.2"
+
+[dev-dependencies]
+egui_kittest = { version = "0.36.2", features = ["eframe", "wgpu", "snapshot"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
