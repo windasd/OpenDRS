@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=OpenDRS
+GenericName=Radio programming software
+GenericName[zh_TW]=對講機寫頻軟體
+Comment=Kydera DR-8500UV / HORA DH-98VU programming software ({version})
+Comment[zh_TW]=Kydera DR-8500UV／HORA DH-98VU 對講機寫頻軟體（{version}）
+Exec=opendrs %f
+Icon=opendrs
+Terminal=false
+Categories=Utility;
+StartupWMClass=opendrs

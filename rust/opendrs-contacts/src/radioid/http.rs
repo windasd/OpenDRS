@@ -2,7 +2,10 @@
 //! parameter of the Python version: tests pass a closure, the application [`UreqClient`].
 
 use std::io::Read;
+use std::sync::Arc;
 use std::time::Duration;
+
+use rustls_platform_verifier::BuilderVerifierExt;
 
 use ureq::tls::{RootCerts, TlsConfig};
 
@@ -70,6 +73,19 @@ where
     fn get(&self, request: &HttpRequest) -> Result<HttpResponse, HttpError> {
         self(request)
     }
+}
+
+/// Build the TLS client configuration the downloads use (rustls with ring, certificates checked
+/// against the operating system's trust store) without connecting anywhere — the self-test's
+/// proof that a build can reach RadioID.net.
+pub fn tls_ready() -> Result<String, String> {
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .and_then(BuilderVerifierExt::with_platform_verifier)
+        .map(|builder| builder.with_no_client_auth())
+        .map(|_| "rustls（ring）＋作業系統憑證庫".to_string())
+        .map_err(|e| e.to_string())
 }
 
 /// The real network, through `ureq` with rustls and the operating system's trust store.

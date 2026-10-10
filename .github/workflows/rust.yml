@@ -1,5 +1,6 @@
-# Rust 重寫分支：Windows／Linux／macOS 各跑格式、clippy（警告視為錯誤）、測試；
-# 另一個工作用 Python 版重新產生比對答案，確認提交的 parity*.json 是最新的。
+# Rust 重寫分支：Windows／Linux／macOS 各跑格式、clippy（警告視為錯誤）、測試，再各自打包
+# （cargo xtask dist：release 建置、打包後自我測試、壓縮）；另一個工作用 Python 版重新產生
+# 比對答案，確認提交的 parity*.json 是最新的。
 name: rust
 
 on:
@@ -45,6 +46,46 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: 測試（含與 Python 版的逐欄比對、實機擷取重播）
         run: cargo test --workspace --locked
+      - name: 三個平台的執行檔都有第三方授權全文
+        if: runner.os == 'Linux'
+        run: >-
+          cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darwin
+          --target x86_64-unknown-linux-gnu
+
+  dist:
+    name: 打包（${{ matrix.os }}）
+    needs: rust
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux 版在較舊的 Ubuntu 上建置，連結的 glibc 版本低，較多發行版能執行
+        os: [windows-latest, ubuntu-22.04, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # 自我測試會載入中文字型、建立繪圖介面（沒有 GPU 的 Linux 用 lavapipe 軟體繪圖）
+      - name: 安裝 libudev、視窗程式庫、中文字型與軟體繪圖（Linux）
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libudev-dev
+          libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+          fonts-noto-cjk mesa-vulkan-drivers libvulkan1 libegl1 libgl1-mesa-dri
+      - name: 安裝 Rust stable
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: 建置、自我測試、壓縮
+        run: cargo xtask dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: OpenDRS-rust-${{ runner.os }}
+          path: rust/dist/OpenDRS-*
+          if-no-files-found: error
+          retention-days: 30
 
   oracle:
     name: 比對答案是最新的（Python 3.13.15）

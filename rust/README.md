@@ -12,8 +12,9 @@ Python 版保留在同一個分支當「標準答案」：Rust 版的每個結�
 | `opendrs-contacts` | RadioID.net 資料庫下載／快取／搜尋 `radioid`、匯入成聯絡人 `contact_import`、聯絡人 CSV `contacts_csv` |
 | `opendrs-cli` | 指令列工具 `opendrs-rs`（見下） |
 | `opendrs-gui` | 視窗程式 `opendrs`（egui／eframe）：主視窗、九個頁面、讀寫頻、韌體升級、錄音、RadioID 匯入、備份管理、批次新增、比較專案、列印（`gui/` 全部；見 `opendrs-gui/PORTING.md`） |
+| `xtask` | 打包工具 `cargo xtask dist`：release 建置、打包後自我檢查、各平台壓縮檔（見「打包與自我檢查」） |
 
-尚未移植：軟體更新檢查、打包（PyInstaller 版的 `build.py` 與自我檢查）、工具列圖示。
+尚未移植：軟體更新檢查、工具列圖示（目前是文字按鈕）。
 
 指令列工具 `opendrs-rs`：
 
@@ -66,7 +67,50 @@ cargo clippy --target aarch64-apple-darwin     --no-default-features -p opendrs-
 ```
 
 GitHub Actions（`.github/workflows/rust.yml`）在 Windows、Ubuntu、macOS 上各跑一次完整的格式、clippy、測試，
-另有一個工作用 Python 3.13.15 重新產生所有比對答案，確認提交的版本是最新的。
+通過後各自打包（見下節）並上傳成 artifact；另有一個工作用 Python 3.13.15 重新產生所有比對答案，確認提交的版本是最新的。
+
+## 打包與自我檢查
+
+```
+cd rust
+cargo xtask dist                       # 或加 --expect-tag v0.1.0（標籤須等於版本）、--skip-build（沿用已有的 release 建置）
+cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darwin --target x86_64-unknown-linux-gnu
+```
+
+對應 Python 版的 `packaging/build.py`，在哪個平台執行就產生哪個平台的壓縮檔，放在 `rust/dist/`：
+
+1. `cargo build --release --locked` 建置視窗程式 `opendrs` 與指令列 `opendrs-rs`；
+2. 整理成 `OpenDRS/` 資料夾：Windows 是 `OpenDRS.exe`（`opendrs-gui/build.rs` 以 winresource 嵌入圖示與版本資訊，
+   需要 Windows SDK 的 `rc.exe`）；macOS 是 `OpenDRS.app`（Info.plist、icns 圖示，未簽署）；Linux 另附 `opendrs.desktop`
+   與圖示；三者都有 `README.txt` 與 `licenses/`；
+3. 執行整理好的 `OpenDRS --self-test` 與 `opendrs-rs --version`：任何一項失敗、少了或多了檢查項目、不是 release 建置
+   或版本不符就中止；在 CI 上 skip 也算失敗（三種 runner 都裝有瀏覽器）。自我測試的資料夾指向一個空資料夾，結束後必須仍是空的。
+   Windows 的 `.exe` 另外確認不需要 `VCRUNTIME140.dll`（`rust/.cargo/config.toml` 以 `+crt-static` 靜態連結 C 執行庫）；
+4. 壓縮成 `OpenDRS-<版本>-windows-x64.zip`、`-macos-arm64.zip`、`-linux-x64.tar.gz`（保留執行權限），並寫出 `.sha256`。
+
+`licenses/THIRD_PARTY_LICENSES.txt` 由 `cargo tree` 列出實際編入該平台執行檔的套件（目前約 230 個），附上每個套件
+原始碼中的授權全文（相同全文只列一次）；套件沒附全文時改指向 `rust/packaging/licenses/` 的標準全文
+（Apache-2.0、BSL-1.0、MIT，並列出 Cargo.toml 的著作權人），兩者都沒有就中止打包；MPL-2.0 套件附上原始碼位置。
+`cargo xtask licenses` 只做這項檢查、可指定任何平台，CI 在 Linux 上一次檢查三個平台。
+範本（README、Info.plist、desktop 檔、第三方說明）在 `rust/packaging/`。Linux 版在 Ubuntu 22.04 上建置（glibc 2.35）。
+圖示由 `tools/make_icons.py`（需要 PySide6）從 Python 版 `theme.app_icon` 的 SVG 直接算圖，存在 `opendrs-gui/assets/`。
+
+自我檢查（`opendrs --self-test 報告.json`，對應 `selftest.py`）不開視窗、不接對講機、不碰使用者的設定，
+報告是 JSON（Windows 版沒有主控台），每項開始前都先寫入目前進度（`running` 欄位），卡住時也看得出停在哪一項；
+全部通過時結束碼為 0：
+
+| 項目 | 檢查 |
+|---|---|
+| `fonts` | 系統中文字型找得到、能載入 |
+| `icon` | 內嵌的視窗圖示能解碼 |
+| `codecs` | Big5、GBK 名稱編碼來回一致 |
+| `settings` | 設定檔在暫存資料夾寫入並讀回 |
+| `radio` | 模擬對講機讀取（含備份）→ 寫入三台頻道的範例專案 → 讀回一致（release 建置的協定與資料處理） |
+| `window` | 開啟範例專案，九個頁面各畫兩幀（不需顯示器） |
+| `gpu` | 以 eframe 相同設定取得 wgpu 繪圖介面並建立裝置（沒有 GPU 時為 WARP、lavapipe 等軟體繪圖；不開真正的視窗） |
+| `serial` | 列出序列埠（Linux 需 libudev） |
+| `tls` | 建立 RadioID 下載用的 rustls（ring）＋作業系統憑證庫設定 |
+| `pdf` | 以已安裝的 Edge／Chrome 把報告印成 PDF；沒有瀏覽器時為 skip（不算失敗） |
 
 ## 怎麼確認和 Python 版一樣
 

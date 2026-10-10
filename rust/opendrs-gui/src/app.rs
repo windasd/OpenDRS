@@ -728,14 +728,15 @@ impl OpenDrsApp {
     }
 }
 
-impl eframe::App for OpenDrsApp {
-    /// Also runs while the window is minimized or hidden, so the close guard lives here.
-    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+impl OpenDrsApp {
+    /// What runs every frame, shown or not: the transfer's news and the close guard.
+    pub(crate) fn tick(&mut self, ctx: &egui::Context) {
         self.poll_radio();
         self.guard_close(ctx);
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// The whole window (the self-test draws it without eframe).
+    pub(crate) fn draw(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         self.shortcuts(&ctx);
         self.handle_drops_and_title(&ctx);
@@ -756,5 +757,16 @@ impl eframe::App for OpenDrsApp {
         });
         self.show_windows(&ctx);
         self.dialogs(&ctx);
+    }
+}
+
+impl eframe::App for OpenDrsApp {
+    /// Also runs while the window is minimized or hidden, so the close guard lives here.
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.tick(ctx);
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.draw(ui);
     }
 }

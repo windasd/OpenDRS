@@ -1,0 +1,8 @@
+[alias]
+# Release packaging: build, self-test, archive (see xtask/src/main.rs).
+xtask = "run --locked --package xtask --"
+
+# Link the C runtime statically on Windows, so OpenDRS.exe runs on a PC without the Visual C++
+# redistributable (VCRUNTIME140.dll); the PyInstaller build shipped that DLL instead.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
