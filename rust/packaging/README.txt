@@ -22,6 +22,8 @@ https://github.com/windasd/OpenDRS
   中文字型使用系統字型（Windows 微軟正黑體、macOS 蘋方、Linux Noto Sans CJK 或文泉驛）；
   找不到時可用環境變數 OPENDRS_FONT 指定字型檔。
   匯出 PDF 需要已安裝 Microsoft Edge 或 Google Chrome；沒有時可用「預覽列印」在瀏覽器中另存 PDF。
+  畫面閃爍或無法顯示時，可用環境變數 WGPU_BACKEND 換一種繪圖方式再開啟（Windows 預設 dx12，可改 vulkan 或 gl；
+  例如在命令提示字元執行 set WGPU_BACKEND=gl 後再執行 OpenDRS.exe）。
   錄音轉成 WAV 需要原廠附帶的 ambep2.exe（只限 Windows），本程式不附帶。
 
 自我檢查

@@ -164,6 +164,8 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
 ## 第三階段：視窗程式（egui／eframe）
 
 - 框架：**egui + eframe 0.36**——純 Rust，三個平台都只需 Rust 工具鏈，單一執行檔；檔案對話框用 `rfd`。
+- 繪圖：wgpu；Windows 預設用 Direct3D 12（部分 Intel 顯示卡的 Vulkan 驅動程式在每次重繪——例如移動滑鼠——時會讓視窗閃爍），
+  其他平台用 eframe 的預設（Metal、Vulkan 或 OpenGL）；環境變數 `WGPU_BACKEND`（`dx12`、`vulkan`、`gl`）可另外指定。
 - 中文字型：不附字型檔，啟動時從系統載入（Windows 微軟正黑體／細明體、macOS 蘋方／黑體、Linux 透過 fontconfig 找 Noto Sans CJK 或文泉驛），
   另載入符號字型（✔ ⚠ ␍␊ 等）；找不到時狀態列提示，可用環境變數 `OPENDRS_FONT` 指定字型檔。
 - 每段文字、確認問題、復原標籤都照 Python 版；不同之處列在 `opendrs-gui/PORTING.md` 第 4 節（主要是對話框改為非模式視窗，

@@ -323,9 +323,9 @@ fn block_on<F: Future>(future: F, timeout: Duration) -> Option<F::Output> {
     }
 }
 
-/// The adapter eframe would draw with (same backends and power preference, no window).
+/// The adapter and device the window draws with (`crate::wgpu_setup`, no window).
 fn check_gpu() -> Result<Pass, String> {
-    let setup = eframe::egui_wgpu::WgpuSetupCreateNew::without_display_handle();
+    let setup = crate::wgpu_setup(); // what the window uses
     let instance = wgpu::Instance::new(setup.instance_descriptor);
     let options = wgpu::RequestAdapterOptions {
         power_preference: setup.power_preference,
