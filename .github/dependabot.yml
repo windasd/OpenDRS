@@ -1,15 +1,16 @@
 # 每週檢查新版並開 PR：workflow 用到的 GitHub Actions（連同固定的 commit SHA），
-# 以及 packaging/requirements-ci.txt 固定的 Python 套件。PR 會先經過 CI 測試與打包。
+# 以及 rust/Cargo.lock 固定的 Rust 套件。PR 會先經過 CI 的測試與打包。
+# （Dependabot 只讀預設分支上的這個檔案；這個分支合併為預設分支後才會生效。）
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-  - package-ecosystem: pip
-    directory: /packaging
+  - package-ecosystem: cargo
+    directory: /rust
     schedule:
       interval: weekly
     groups:
-      qt:
-        patterns: ["PySide6*", "shiboken6"]
+      egui:
+        patterns: ["egui*", "eframe", "epaint*", "emath", "ecolor"]
