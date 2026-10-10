@@ -22,6 +22,7 @@ use opendrs_core::radio_sim::SimulatedRadio;
 
 use crate::app::{Dialog, OpenDrsApp, Pending};
 use crate::document::Document;
+use crate::icons::{Icon, tool_button};
 use crate::pages::PageState;
 
 /// The port value of 模擬對講機（試用）.
@@ -531,8 +532,7 @@ impl OpenDrsApp {
                 })
                 .response
                 .on_hover_text("寫頻線連接埠");
-            if ui
-                .button("重新整理")
+            if tool_button(ui, Icon::Refresh, "", true)
                 .on_hover_text("重新列出連接埠（插拔寫頻線後使用）")
                 .clicked()
             {
@@ -543,15 +543,13 @@ impl OpenDrsApp {
             self.remember_port();
         }
         let ready = idle;
-        if ui
-            .add_enabled(ready, egui::Button::new("讀取"))
+        if tool_button(ui, Icon::Read, "讀取", ready)
             .on_hover_text(READ_TIP)
             .clicked()
         {
             self.read_from_radio();
         }
-        if ui
-            .add_enabled(ready, egui::Button::new("寫入"))
+        if tool_button(ui, Icon::Write, "寫入", ready)
             .on_hover_text(WRITE_TIP)
             .clicked()
         {

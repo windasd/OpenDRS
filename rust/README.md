@@ -14,7 +14,7 @@ Python 版保留在同一個分支當「標準答案」：Rust 版的每個結�
 | `opendrs-gui` | 視窗程式 `opendrs`（egui／eframe）：主視窗、九個頁面、讀寫頻、韌體升級、錄音、RadioID 匯入、備份管理、批次新增、比較專案、列印（`gui/` 全部；見 `opendrs-gui/PORTING.md`） |
 | `xtask` | 打包工具 `cargo xtask dist`：release 建置、打包後自我檢查、各平台壓縮檔（見「打包與自我檢查」） |
 
-尚未移植：軟體更新檢查、工具列圖示（目前是文字按鈕）。
+尚未移植：軟體更新檢查。
 
 指令列工具 `opendrs-rs`：
 
@@ -93,7 +93,9 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
 （Apache-2.0、BSL-1.0、MIT，並列出 Cargo.toml 的著作權人），兩者都沒有就中止打包；MPL-2.0 套件附上原始碼位置。
 `cargo xtask licenses` 只做這項檢查、可指定任何平台，CI 在 Linux 上一次檢查三個平台。
 範本（README、Info.plist、desktop 檔、第三方說明）在 `rust/packaging/`。Linux 版在 Ubuntu 22.04 上建置（glibc 2.35）。
-圖示由 `tools/make_icons.py`（需要 PySide6）從 Python 版 `theme.app_icon` 的 SVG 直接算圖，存在 `opendrs-gui/assets/`。
+圖示由 `tools/make_icons.py`（需要 PySide6）產生：程式圖示從 Python 版 `theme.app_icon` 的 SVG 直接算圖（png、ico、icns），
+工具列與問題清單的圖示把 `theme._ICONS` 寫成白色線條的 SVG（`opendrs-gui/assets/icons/`），執行時由 egui_extras
+依螢幕縮放算圖、再染成主題的文字顏色，和 Python 版 `theme.icon` 一樣。
 
 自我檢查（`opendrs --self-test 報告.json`，對應 `selftest.py`）不開視窗、不接對講機、不碰使用者的設定，
 報告是 JSON（Windows 版沒有主控台），每項開始前都先寫入目前進度（`running` 欄位），卡住時也看得出停在哪一項；

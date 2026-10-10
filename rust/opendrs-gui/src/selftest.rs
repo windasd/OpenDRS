@@ -176,14 +176,18 @@ fn check_fonts() -> Result<Pass, String> {
     Ok(Pass::Ok(fonts::describe(&installed)))
 }
 
-/// The window icon embedded in the program decodes.
+/// The window icon decodes and every toolbar icon rasterises (SVG support is built in).
 fn check_icon() -> Result<Pass, String> {
     let icon = eframe::icon_data::from_png_bytes(crate::ICON_PNG)
         .map_err(|e| format!("圖示無法解碼：{e}"))?;
     if icon.width == 0 || icon.rgba.len() != (icon.width * icon.height * 4) as usize {
         return Err("圖示大小不對".into());
     }
-    Ok(Pass::Ok(format!("{}×{}", icon.width, icon.height)))
+    let toolbar = crate::icons::check(&egui::Context::default())?;
+    Ok(Pass::Ok(format!(
+        "視窗圖示 {}×{}、{toolbar} 個工具列圖示",
+        icon.width, icon.height
+    )))
 }
 
 fn check_codecs() -> Result<Pass, String> {
@@ -397,7 +401,10 @@ mod tests {
 
     #[test]
     fn the_icon_decodes() {
-        assert_eq!(check_icon(), Ok(Pass::Ok("256×256".into())));
+        assert_eq!(
+            check_icon(),
+            Ok(Pass::Ok("視窗圖示 256×256、19 個工具列圖示".into()))
+        );
     }
 
     #[test]

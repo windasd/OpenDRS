@@ -21,7 +21,8 @@ libudev = ["opendrs-core/libudev"]
 # Local time of the RadioID download (as the core crate formats backup times).
 chrono = "0.4.45"
 eframe = "0.36.2"
-egui_extras = "0.36.2"
+# svg: the toolbar icons (resvg, no text support).
+egui_extras = { version = "0.36.2", features = ["svg"] }
 opendrs-contacts = { version = "0.1.0", path = "../opendrs-contacts" }
 opendrs-core = { version = "0.1.0", path = "../opendrs-core", default-features = false }
 opendrs-firmware = { version = "0.1.0", path = "../opendrs-firmware" }

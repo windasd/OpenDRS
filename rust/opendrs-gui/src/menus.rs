@@ -8,6 +8,7 @@ use eframe::egui::{self, KeyboardShortcut, ViewportCommand};
 use crate::app::{
     DELETE, FIND, MOVE_DOWN, MOVE_UP, OPEN, OpenDrsApp, PRINT, REDO, SAVE, SAVE_AS, ThemeMode, UNDO,
 };
+use crate::icons::{Icon, tool_button};
 use crate::radio;
 
 impl OpenDrsApp {
@@ -297,24 +298,19 @@ impl OpenDrsApp {
 
     pub(crate) fn toolbar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            if ui.button("開啟").clicked() {
+            if tool_button(ui, Icon::Open, "開啟", true).clicked() {
                 self.request_open(None);
             }
-            if ui
-                .add_enabled(self.doc.has_project(), egui::Button::new("儲存"))
-                .clicked()
-            {
+            if tool_button(ui, Icon::Save, "儲存", self.doc.has_project()).clicked() {
                 self.save();
             }
-            if ui
-                .add_enabled(self.doc.can_undo(), egui::Button::new("復原"))
+            if tool_button(ui, Icon::Undo, "復原", self.doc.can_undo())
                 .on_hover_text(self.doc.undo_text())
                 .clicked()
             {
                 self.undo();
             }
-            if ui
-                .add_enabled(self.doc.can_redo(), egui::Button::new("重做"))
+            if tool_button(ui, Icon::Redo, "重做", self.doc.can_redo())
                 .on_hover_text(self.doc.redo_text())
                 .clicked()
             {
@@ -323,11 +319,13 @@ impl OpenDrsApp {
             ui.separator();
             self.radio_toolbar(ui);
             ui.separator();
-            if ui.button("RadioID 匯入").clicked() {
+            if tool_button(ui, Icon::Users, "RadioID 匯入", true)
+                .on_hover_text("從 RadioID 匯入聯絡人…")
+                .clicked()
+            {
                 self.import_from_radioid();
             }
-            if ui
-                .button("清除換行")
+            if tool_button(ui, Icon::Clean, "清除換行", true)
                 .on_hover_text("移除舊版寫頻軟體寫進名稱的換行等控制字元")
                 .clicked()
             {

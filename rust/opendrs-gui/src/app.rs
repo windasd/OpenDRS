@@ -14,6 +14,7 @@ use opendrs_core::textcodec::{NameCodec, suggest_codec};
 use crate::dialogs::Windows;
 use crate::document::Document;
 use crate::fonts::{self, FontFile};
+use crate::icons::{self, Icon};
 use crate::pages::{self, PageState, Tab};
 use crate::radio::RadioPanel;
 use crate::table::model::Table;
@@ -167,6 +168,7 @@ impl OpenDrsApp {
     /// Install the fonts and theme in `ctx`, read the settings in `data_dir`, open `open`.
     pub fn with_context(ctx: &egui::Context, data_dir: PathBuf, open: Option<PathBuf>) -> Self {
         let fonts = fonts::install(ctx);
+        icons::install(ctx);
         let mut app = Self::with_data_dir(data_dir);
         app.ctx = Some(ctx.clone());
         ctx.set_theme(app.theme().preference());
@@ -573,11 +575,18 @@ impl OpenDrsApp {
         egui::ScrollArea::vertical()
             .auto_shrink(false)
             .show(ui, |ui| {
+                let (danger, ok) = icons::status_colours(ui.visuals().dark_mode);
                 if issues.is_empty() {
-                    ui.label("✔ 沒有問題");
+                    ui.horizontal(|ui| {
+                        ui.add(Icon::Check.image(icons::LIST, ok));
+                        ui.label("沒有問題");
+                    });
                 }
                 for issue in issues {
-                    ui.label(format!("⚠ {issue}"));
+                    ui.horizontal(|ui| {
+                        ui.add(Icon::Warning.image(icons::LIST, danger));
+                        ui.add(egui::Label::new(issue).wrap());
+                    });
                 }
             });
     }

@@ -5,7 +5,11 @@ square), rendered straight from its SVG at every size so no size is scaled from 
 
 - `opendrs-gui/assets/opendrs.png`  256×256, the window icon and the Linux desktop icon;
 - `opendrs-gui/assets/opendrs.ico`  16–256, embedded in the Windows .exe;
-- `opendrs-gui/assets/opendrs.icns` 16–1024, the macOS app bundle's icon.
+- `opendrs-gui/assets/opendrs.icns` 16–1024, the macOS app bundle's icon;
+
+and every stroke icon of `theme._ICONS` (toolbar, problem list) as
+`opendrs-gui/assets/icons/<name>.svg`, drawn as `theme.icon` draws it but in white, so the egui
+version can tint it with the theme's colour.
 
 Run from the repository root (needs PySide6):
     PYTHONPATH=src python rust/tools/make_icons.py
@@ -27,6 +31,7 @@ from opendrs.gui.theme import _ICONS, LIGHT  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "rust" / "opendrs-gui" / "assets"
+ICONS = ASSETS / "icons"
 ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 # (type, pixels): the PNG-based entries of the icns format.
 ICNS_TYPES = ((b"icp4", 16), (b"icp5", 32), (b"icp6", 64), (b"ic07", 128), (b"ic08", 256),
@@ -40,6 +45,13 @@ def svg() -> bytes:
             '<g fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" '
             'stroke-linejoin="round" transform="translate(2 2) scale(0.83)">'
             + _ICONS["radio"] + "</g></svg>").encode()
+
+
+def stroke_icon(name: str) -> str:
+    """One of `theme._ICONS` as `theme.icon` draws it, in white."""
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
+            'fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" '
+            f'stroke-linejoin="round">{_ICONS[name]}</svg>\n')
 
 
 def png(renderer: QSvgRenderer, size: int) -> bytes:
@@ -85,6 +97,12 @@ def main() -> None:
     (ASSETS / "opendrs.icns").write_bytes(icns(renderer))
     for name in ("opendrs.png", "opendrs.ico", "opendrs.icns"):
         print(f"{ASSETS / name}  {(ASSETS / name).stat().st_size:,} bytes")
+    ICONS.mkdir(exist_ok=True)
+    for old in ICONS.glob("*.svg"):
+        old.unlink()
+    for name in sorted(_ICONS):
+        (ICONS / f"{name}.svg").write_text(stroke_icon(name), encoding="utf-8", newline="\n")
+    print(f"{ICONS}  {len(_ICONS)} 個圖示")
 
 
 if __name__ == "__main__":

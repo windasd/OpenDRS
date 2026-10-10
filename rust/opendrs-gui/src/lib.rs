@@ -6,6 +6,7 @@ pub mod app;
 pub mod dialogs;
 pub mod document;
 pub mod fonts;
+pub mod icons;
 pub mod menus;
 pub mod ops;
 pub mod pages;
