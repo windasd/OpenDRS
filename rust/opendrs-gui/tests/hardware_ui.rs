@@ -20,9 +20,13 @@ fn harness(data_dir: &Path) -> Harness<'static, OpenDrsApp> {
     let mut harness = Harness::builder()
         .with_size([1280.0, 780.0])
         .build_eframe(move |cc| OpenDrsApp::with_context(&cc.egui_ctx, data_dir, None));
+    // The dialogs use the toolbar's port. Offer nothing but the simulated radio, whatever ports
+    // this machine has (a CI runner has /dev/ttyS0; a desk may have the cable plugged in).
     harness
         .state_mut()
-        .update_settings(|s| s.radio_port = "__sim__".into());
+        .radio
+        .set_ports(Vec::new(), opendrs_gui::radio::SIMULATED);
+    assert_eq!(harness.state().radio_port().as_deref(), Some("__sim__"));
     harness
 }
 
