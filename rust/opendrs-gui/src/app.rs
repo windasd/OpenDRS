@@ -738,10 +738,12 @@ impl OpenDrsApp {
 }
 
 impl OpenDrsApp {
-    /// What runs every frame, shown or not: the transfer's news and the close guard.
+    /// What runs every frame, shown or not: the close guard, then the transfer's news. In that
+    /// order, a close request is refused while a transfer has not been collected yet, even if
+    /// its thread finished a moment ago.
     pub(crate) fn tick(&mut self, ctx: &egui::Context) {
-        self.poll_radio();
         self.guard_close(ctx);
+        self.poll_radio();
     }
 
     /// The whole window (the self-test draws it without eframe).
