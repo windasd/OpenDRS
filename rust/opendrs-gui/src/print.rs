@@ -2,10 +2,10 @@
 //! report is written as an HTML file and opened in the system browser, which previews and prints
 //! it (A4 landscape); a PDF is made by a headless Edge or Chrome when one is installed.
 
-use std::io;
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use crate::app::OpenDrsApp;
 use crate::dialogs::open_with_system;
@@ -112,13 +112,45 @@ pub fn html_to_pdf(
     result
 }
 
+/// Flags that keep a headless browser from waiting on anything but the page: first-run screens,
+/// the macOS keychain (which stalls Chrome in a session nobody watches), extensions — the set
+/// Puppeteer uses.
+const BROWSER_FLAGS: [&str; 9] = [
+    "--headless=new",
+    "--disable-gpu",
+    "--no-pdf-header-footer",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--disable-dev-shm-usage",
+    "--password-store=basic",
+    "--use-mock-keychain",
+];
+const PDF_TAIL: u64 = 1024;
+
+/// A finished PDF: written since `before` and ending with the `%%EOF` marker.
+fn pdf_complete(pdf: &Path, before: Option<SystemTime>) -> bool {
+    let Ok(meta) = std::fs::metadata(pdf) else {
+        return false;
+    };
+    if meta.len() == 0 || meta.modified().ok() == before {
+        return false;
+    }
+    let Ok(mut file) = std::fs::File::open(pdf) else {
+        return false;
+    };
+    let mut tail = Vec::new();
+    let read = file
+        .seek(SeekFrom::Start(meta.len().saturating_sub(PDF_TAIL)))
+        .and_then(|_| file.read_to_end(&mut tail));
+    read.is_ok() && tail.trim_ascii_end().ends_with(b"%%EOF")
+}
+
 fn run_browser(browser: &Path, html_file: &Path, pdf: &Path, profile: &Path) -> Result<(), String> {
     let cannot_write = || format!("無法寫入 {}（檔案是否已在其他程式開啟？）", pdf.display());
     let before = std::fs::metadata(pdf).and_then(|m| m.modified()).ok();
     let mut child = Command::new(browser)
-        .arg("--headless=new")
-        .arg("--disable-gpu")
-        .arg("--no-pdf-header-footer")
+        .args(BROWSER_FLAGS)
         .arg(format!("--user-data-dir={}", profile.display()))
         .arg(format!("--print-to-pdf={}", pdf.display()))
         .arg(html_file)
@@ -128,6 +160,14 @@ fn run_browser(browser: &Path, html_file: &Path, pdf: &Path, profile: &Path) -> 
         .map_err(|e| format!("無法啟動 {}：{e}", browser.display()))?;
     let started = Instant::now();
     loop {
+        if pdf_complete(pdf, before) {
+            // Done, even if the browser has not exited yet (it may keep helpers running).
+            if matches!(child.try_wait(), Ok(None)) {
+                let _ = child.kill();
+            }
+            let _ = child.wait(); // reap it
+            return Ok(());
+        }
         match child.try_wait() {
             Ok(Some(_)) => break,
             Ok(None) if started.elapsed() < PDF_TIMEOUT => {
@@ -141,10 +181,11 @@ fn run_browser(browser: &Path, html_file: &Path, pdf: &Path, profile: &Path) -> 
             Err(e) => return Err(e.to_string()),
         }
     }
-    let after = std::fs::metadata(pdf).ok();
-    let written = after.as_ref().is_some_and(|m| m.len() > 0)
-        && after.and_then(|m| m.modified().ok()) != before;
-    if written { Ok(()) } else { Err(cannot_write()) }
+    if pdf_complete(pdf, before) {
+        Ok(())
+    } else {
+        Err(cannot_write())
+    }
 }
 
 // ------------------------------------------------------------------ main window
@@ -255,6 +296,24 @@ impl OpenDrsApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_pdf_is_complete_once_it_ends_with_eof() {
+        let dir = std::env::temp_dir().join(format!("opendrs-pdf-tail-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let pdf = dir.join("a.pdf");
+        assert!(!pdf_complete(&pdf, None), "missing");
+        std::fs::write(&pdf, b"%PDF-1.7\n1 0 obj").expect("write");
+        assert!(!pdf_complete(&pdf, None), "still being written");
+        std::fs::write(&pdf, b"%PDF-1.7\n1 0 obj\ntrailer\n%%EOF\n").expect("write");
+        assert!(pdf_complete(&pdf, None));
+        let stamp = std::fs::metadata(&pdf).and_then(|m| m.modified()).ok();
+        assert!(
+            !pdf_complete(&pdf, stamp),
+            "an old file from before the export"
+        );
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
 
     #[test]
     fn print_rules_are_added_to_the_report() {
