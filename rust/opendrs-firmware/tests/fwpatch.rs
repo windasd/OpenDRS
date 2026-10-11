@@ -8,7 +8,7 @@ use common::analysis_dir;
 use opendrs_firmware::firmware_check::{known_patched_image, known_vendor_image};
 use opendrs_firmware::fwpatch::{
     A_BASE, KNOWN_BASES, RECORD_READ, RecordReadStatus, is_record_read_patched, known_base,
-    patch_record_read, record_read_status,
+    patch_record_read, record_read_status, refs_into,
 };
 use opendrs_firmware::sha256_hex;
 
@@ -98,7 +98,27 @@ fn refuses_other_code_and_live_code_in_the_cave() {
     .concat();
     let err = patch_record_read(&synthetic(&[(at, &call)])).unwrap_err();
     assert!(err.0.contains("進入被覆寫的區域"), "{}", err.0);
+    // the same with a 32-bit compare-with-zero branch (bez r13), common in this firmware
+    let off16 = (target.wrapping_sub(at) as i32 / 2) as u16;
+    let bez = [0xE90Du16.to_le_bytes(), off16.to_le_bytes()].concat();
+    let err = patch_record_read(&synthetic(&[(at, &bez)])).unwrap_err();
+    assert!(err.0.contains("進入被覆寫的區域"), "{}", err.0);
     assert!(record_read_status(&[0; 100]).to_string().contains("太小"));
+}
+
+#[test]
+fn refs_into_sees_bez32() {
+    let Ok(data) = std::fs::read(vendor_03()) else {
+        eprintln!("skipped: vendor firmware not on this machine");
+        return;
+    };
+    // bez r13 at 0x03018928 jumps to 0x03018BBA (the VFO keypad first-digit check)
+    let hits = refs_into(&data, 0x0301_8BBA, 0x0301_8BBC);
+    assert!(
+        hits.iter()
+            .any(|r| r.at == 0x0301_8928 && r.target == Some(0x0301_8BBA)),
+        "{hits:?}"
+    );
 }
 
 #[test]

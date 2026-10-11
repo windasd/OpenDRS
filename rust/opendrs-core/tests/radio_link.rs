@@ -175,6 +175,24 @@ fn identity_mismatch_rules_for_the_captured_project() {
 }
 
 #[test]
+fn identity_mismatch_with_the_band_widened_test_firmware() {
+    // That firmware reports +136-520MHZ+ and writes F136-520 at settings +0x50 on a read.
+    let widened = RadioIdentity::parse(b"308E.BBKTARSCB.003\0+DRS-8500+136-520MHZ+\0");
+    assert_eq!(widened.band, "136-520");
+    let old = written(); // read from the vendor firmware: F136-480
+    let reason = identity_mismatch(&old, &widened).unwrap_or_default();
+    assert!(
+        reason.contains("136-480") && reason.contains("136-520"),
+        "{reason}"
+    );
+    let mut image = old.image.clone();
+    image[0x50..0x58].copy_from_slice(b"F136-520");
+    let reread = Project { image, ..old };
+    assert_eq!(reread.device().band_label, "F136-520");
+    assert_eq!(identity_mismatch(&reread, &widened), None);
+}
+
+#[test]
 fn backups_are_named_by_time_kind_and_model() {
     let dir = std::env::temp_dir().join(format!("opendrs-link-backup-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

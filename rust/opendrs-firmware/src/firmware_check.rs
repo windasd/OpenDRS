@@ -9,9 +9,11 @@
 //!   `308E.B6.TARSCB.003` and a radio reporting `308E.BBKTARSCB.003` are the same build -> OK;
 //! * same hardware prefix, otherwise different -> warning, the user must confirm explicitly;
 //! * a different hardware prefix or no ID -> blocked;
-//! * the band-patched images produced during the firmware analysis -> blocked;
+//! * the band-only patched images produced during the firmware analysis -> blocked;
 //! * the known record-read patched images ([`crate::fwpatch`]) -> warning that needs the
-//!   explicit tick; on a radio running the same build it is undone by flashing the vendor file.
+//!   explicit tick; on a radio running the same build it is undone by flashing the vendor file;
+//! * the band-widened images with the record-read fix (and the VFO keypad fix), made on request
+//!   for a test -> the same kind of warning, saying what is unverified.
 
 use std::fs;
 use std::io;
@@ -35,7 +37,7 @@ pub fn default_iap_exe() -> Option<PathBuf> {
     cfg!(windows).then(|| PathBuf::from(r"C:\Program Files (x86)\IAP(APP+FLASH)\IAP+Flash.exe"))
 }
 
-/// SHA-256 of the band-patched images made during the analysis (never flash these).
+/// SHA-256 of the band-only patched images made during the analysis (never flash these).
 pub const BLOCKED_IMAGES: &[(&str, &str)] = &[
     (
         "7d10b46b350ff818d7d9a6882baf9add21a093b6c1d4a683a759bbeb950830bf",
@@ -60,14 +62,40 @@ pub const KNOWN_VENDOR_IMAGES: &[(&str, &str)] = &[
     ),
 ];
 
+/// What was verified for the 30-byte record-read patch (the last sentence of its warning).
+pub const RECORD_READ_NOTE: &str =
+    "這 30 bytes 的修補已於 2026-10-09 在 BK4819 實機（03 版）刷入並讀取 25 筆錄音驗證";
+
+/// What the band-widened test images share (a macro so `concat!` can build on it).
+macro_rules! band_widened {
+    () => {
+        "頻段限制放寬為 136–180／400–520 MHz（對講機改回報 F136-520）：超出原廠 136–174／400–480 MHz \
+         的部分沒有出廠校準，超出校準表最後節點時發射功率、頻偏與靜噪如何計算尚未查明，未經驗證，\
+         發射測試請接假負載；錄音讀取的 30 bytes 與已實機驗證的版本相同。"
+    };
+}
+/// The 136-180/400-520 test image with the record-read fix, as flashed on 2026-10-11.
+pub const BAND_WIDENED_NOTE: &str = concat!(
+    band_widened!(),
+    "2026-10-11 已在 BK4819 實機（03 版）刷入，旋鈕可調到 5XX MHz，\
+     但 VFO 鍵盤無法輸入 5 開頭的頻率（改用加了鍵盤修正的版本）"
+);
+/// The same image plus the VFO keypad first-digit fix.
+pub const BAND_WIDENED_KEYPAD_NOTE: &str = concat!(
+    band_widened!(),
+    "另修正 VFO 鍵盤首位數字只接受 1、4 的檢查，可輸入 5 開頭的頻率；\
+     2026-10-11 已在 BK4819 實機（03 版）刷入，確認鍵盤可正常輸入 5XX MHz"
+);
+
 /// Modified images made on request; flashable only after confirmation.
-/// SHA-256 -> (description, the vendor file it was made from).
-pub const KNOWN_PATCHED_IMAGES: &[(&str, (&str, &str))] = &[
+/// SHA-256 -> (description, the vendor file it was made from, what is verified).
+pub const KNOWN_PATCHED_IMAGES: &[(&str, (&str, &str, &str))] = &[
     (
         "86d1ea6579eeabb4d1c2dee451bc3f89f3583a3c444d9c592fe26e7e8b3cb252",
         (
             "錄音讀取修補版（原廠韌體改 30 bytes，讓對講機回應電腦讀取錄音的指令）",
             "C7000_DR8500UV_4819_03_136174_400480.bin",
+            RECORD_READ_NOTE,
         ),
     ),
     (
@@ -75,6 +103,23 @@ pub const KNOWN_PATCHED_IMAGES: &[(&str, (&str, &str))] = &[
         (
             "錄音讀取修補版（業餘頻段 05 版原廠韌體改 30 bytes，讓對講機回應電腦讀取錄音的指令）",
             "C7000_DR8500UV_4819_05_144146_430440.bin",
+            RECORD_READ_NOTE,
+        ),
+    ),
+    (
+        "b31dc8893580c3c6e6ccc2ae922aefc9bd1a72bb1c756ae8339a9c037403cad3",
+        (
+            "136-180／400-520 改頻段測試版加錄音讀取修補（原廠韌體改 76 bytes）",
+            "C7000_DR8500UV_4819_03_136174_400480.bin",
+            BAND_WIDENED_NOTE,
+        ),
+    ),
+    (
+        "8953e3e30285c0c55bff59dea8dd894f50a0816312f20758de9383f58e86d8ae",
+        (
+            "136-180／400-520 改頻段測試版加錄音讀取修補與鍵盤修正（原廠韌體改 108 bytes）",
+            "C7000_DR8500UV_4819_03_136174_400480.bin",
+            BAND_WIDENED_KEYPAD_NOTE,
         ),
     ),
 ];
@@ -101,8 +146,8 @@ pub fn known_vendor_image(sha256: &str) -> Option<&'static str> {
     lookup(KNOWN_VENDOR_IMAGES, sha256)
 }
 
-/// (description, vendor file it was made from).
-pub fn known_patched_image(sha256: &str) -> Option<(&'static str, &'static str)> {
+/// (description, vendor file it was made from, what is verified).
+pub fn known_patched_image(sha256: &str) -> Option<(&'static str, &'static str, &'static str)> {
     lookup(KNOWN_PATCHED_IMAGES, sha256)
 }
 
@@ -273,8 +318,7 @@ fn label(firmware_id: &str, date: &str) -> String {
 /// A patched vendor image: undone by flashing the vendor file again, if that is the radio's
 /// build.
 fn patched_finding(
-    name: &str,
-    vendor_file: &str,
+    (name, vendor_file, note): (&str, &str, &str),
     image: &FirmwareFile,
     radio_firmware: &str,
     radio_date: &str,
@@ -300,13 +344,7 @@ fn patched_finding(
         };
         format!("{current}，無法確認與{base}是同一版本；若不是，{no_way_back}")
     };
-    finding(
-        Level::Warn,
-        format!(
-            "這是{name}。{way_back}。這 30 bytes 的修補已於 2026-10-09 在 BK4819 實機（03 版）\
-             刷入並讀取 25 筆錄音驗證"
-        ),
-    )
+    finding(Level::Warn, format!("這是{name}。{way_back}。{note}"))
 }
 
 /// What the firmware ID comparison says.
@@ -371,14 +409,8 @@ pub fn check(
             ),
         ));
     }
-    if let Some((name, vendor_file)) = known_patched_image(&image.sha256) {
-        out.push(patched_finding(
-            name,
-            vendor_file,
-            image,
-            radio_firmware,
-            radio_date,
-        ));
+    if let Some(patched) = known_patched_image(&image.sha256) {
+        out.push(patched_finding(patched, image, radio_firmware, radio_date));
     }
     out.push(id_finding(image, radio_firmware));
     if !radio_date.is_empty() && !image.build_date.is_empty() {

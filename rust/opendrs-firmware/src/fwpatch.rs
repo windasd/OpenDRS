@@ -229,6 +229,12 @@ fn wide_target(at: i64, h: u32, n: u32) -> Option<i64> {
     if h >> 8 == 0xE8 && h & 0x1F == 0 {
         return Some(at + sign_extend(n, 16) * 2); // br32 / bt32 / bf32
     }
+    // 32-bit "compare register with zero and branch" (0xE800 | sop << 5 | rx, then a 16-bit
+    // offset): 1 bnezad, 8 bez, 9 bnez, 10 bhz, 11 blsz, 12 blz, 13 bhsz.
+    // e.g. bez r13 = E90D at 0x03018928.
+    if h >> 10 == 0b11_1010 && matches!((h >> 5) & 0x1F, 1 | 8..=13) {
+        return Some(at + sign_extend(n, 16) * 2);
+    }
     if h >> 10 == 0b11_1010 && matches!((h >> 5) & 0x1F, 0x14 | 0x16 | 0x17) {
         return Some((at & !3) + i64::from(n) * 4); // lrw32 / jmpi32 / jsri32
     }

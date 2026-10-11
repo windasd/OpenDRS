@@ -1,6 +1,6 @@
 # GUI 移植對照（PySide6 → egui）
 
-文中的 `*.py` 指 Python 版的 `src/opendrs/gui/`（在 `main` 分支，或本分支的 commit `8aa7c0b`）。
+文中的 `*.py` 指 Python 版的 `src/opendrs/gui/`（在 `main` 分支；本文件依 commit `8aa7c0b` 寫成，`main` 之後新增的頁面按鈕、新增聯絡人與檢查更新尚未移植）。
 
 Python 版 GUI（`src/opendrs/gui/*.py`，約 5,400 行）的功能清單，egui 版照這份做。中文字串一律與 Python 版逐字相同。
 （2026-10-10 由程式碼整理；Python 版有改動時同步更新。）

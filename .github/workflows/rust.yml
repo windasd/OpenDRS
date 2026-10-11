@@ -95,11 +95,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Python 版已不在這個分支：取出最後一個含 Python 版的 commit（含比對時修正的問題）當標準答案。
+      # Python 版已不在這個分支：取出 main 分支上當標準答案的 commit（README「怎麼確認和 Python 版一樣」）。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: 8aa7c0b2667a474c497792df75997958c9bf63f3
+          ref: 6f28c9522a3f0c9ba93ba852619ce9f7991611c2
           path: opendrs-oracle
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:

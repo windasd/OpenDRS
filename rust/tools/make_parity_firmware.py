@@ -478,7 +478,7 @@ def check_cases() -> tuple[dict, list, list]:
     combos = [("plain", i, d, b) for i, d, b in product(ids, ["Mar 9 2024", ""], [True, False])]
     combos += [("patched0", i, d, True) for i, d in product(ids[1:3], ["Mar 9 2024", ""])]
     combos += [(s, "308E.B6.TARSCB.003", "Mar 9 2024", True)
-               for s in ("vendor0", "vendor1", "patched1", "blocked0", "blocked1")]
+               for s in ("vendor0", "vendor1", "patched1", "patched2", "patched3", "blocked0", "blocked1")]
     out, texts = [], {}
     for (sha_key, file_id, date, backup), radio, radio_date in product(combos, radios, radio_dates):
         image = FirmwareFile(Path("fw.bin"), 1024, shas[sha_key], file_id, date)

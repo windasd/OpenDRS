@@ -26,11 +26,14 @@ const MHZ: u32 = 1_000_000;
 /// An inclusive frequency range in Hz.
 pub type Band = (u32, u32);
 
-/// Factory band variants of this product family ("136-480" is dual band VHF + UHF).
+/// Factory band variants of this product family ("136-480" is dual band VHF + UHF), plus the
+/// label the band-widened test firmware reports.
 pub fn bands_for(label: &str) -> Option<Vec<Band>> {
     let m = |lo: u32, hi: u32| (lo * MHZ, hi * MHZ);
     let bands = match label {
         "136-480" => vec![m(136, 174), m(400, 480)],
+        // Not a factory variant: the band-widened test firmware (mkpatch_band_record.py) reports it.
+        "136-520" => vec![m(136, 180), m(400, 520)],
         "136-174" => vec![m(136, 174)],
         "140-174" => vec![m(140, 174)],
         "150-170" => vec![m(150, 170)],
@@ -224,6 +227,21 @@ mod tests {
             "900.00000 MHz 超出本機頻段（136–174、400–480 MHz）"
         );
         assert_eq!(frequency_problem(900_000_000, None), None);
+    }
+
+    #[test]
+    fn band_widened_test_firmware_label() {
+        let bands = bands_for("136-520").unwrap();
+        assert_eq!(bands, vec![(136 * MHZ, 180 * MHZ), (400 * MHZ, 520 * MHZ)]);
+        for ok in [136, 178, 180, 400, 500, 520] {
+            assert_eq!(frequency_problem(ok * MHZ, Some(&bands)), None, "{ok}");
+        }
+        for bad in [135, 181, 250, 399, 521] {
+            assert!(
+                frequency_problem(bad * MHZ, Some(&bands)).is_some(),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

@@ -13,6 +13,8 @@ use opendrs_firmware::firmware_check::{
 const RADIO: &str = "308E.BBKTARSCB.003";
 const RECORD_PATCH_SHA256: &str =
     "86d1ea6579eeabb4d1c2dee451bc3f89f3583a3c444d9c592fe26e7e8b3cb252";
+const BAND_RECORD_SHA256: &str = "b31dc8893580c3c6e6ccc2ae922aefc9bd1a72bb1c756ae8339a9c037403cad3";
+const BAND_KEYPAD_SHA256: &str = "8953e3e30285c0c55bff59dea8dd894f50a0816312f20758de9383f58e86d8ae";
 
 fn vendor() -> PathBuf {
     analysis_dir().join("C7000_DR8500UV_4819_03_136174_400480.bin")
@@ -180,6 +182,12 @@ fn vendor_file_and_band_patches() {
         }
         let p = inspect(&path).unwrap();
         let band = check(&p, RADIO, true, "Mar 9 2024");
+        if [BAND_RECORD_SHA256, BAND_KEYPAD_SHA256].contains(&p.sha256.as_str()) {
+            // test builds made on request: a warning, not a block
+            assert_eq!(verdict(&band), Level::Warn, "{name}");
+            assert!(band.iter().any(|f| f.text.contains("頻段限制放寬")));
+            continue;
+        }
         assert!(blocked_image(&p.sha256).is_some(), "{name}");
         assert_eq!(verdict(&band), Level::Block);
         assert!(
@@ -207,8 +215,59 @@ fn patch_findings(radio: &str, date: &str) -> Vec<Finding> {
 }
 
 #[test]
+fn band_widened_test_images_warn_what_is_unverified() {
+    let cases = [
+        (
+            BAND_RECORD_SHA256,
+            "改頻段測試版加錄音讀取修補（",
+            "已在 BK4819 實機",
+            "無法輸入 5 開頭",
+        ),
+        (
+            BAND_KEYPAD_SHA256,
+            "鍵盤修正",
+            "108 bytes",
+            "確認鍵盤可正常輸入 5XX MHz",
+        ),
+    ];
+    for (sha, marker, detail, flashed) in cases {
+        let (_, vendor_file, note) = known_patched_image(sha).expect("known image");
+        let findings = check(&image_with(sha), RADIO, true, "Mar 9 2024");
+        assert_eq!(verdict(&findings), Level::Warn);
+        assert!(blocked_image(sha).is_none());
+        let patch: Vec<_> = findings
+            .iter()
+            .filter(|f| f.text.contains(marker))
+            .collect();
+        assert!(
+            patch.len() == 1 && patch[0].level == Level::Warn,
+            "{marker}"
+        );
+        let text = &patch[0].text;
+        for part in [
+            "136–180／400–520",
+            "F136-520",
+            "假負載",
+            "未經驗證",
+            "5 開頭",
+            detail,
+            flashed,
+        ] {
+            assert!(text.contains(part), "{part}");
+        }
+        assert!(
+            text.ends_with(note),
+            "the finding ends with the image's note"
+        );
+        // same build as the radio: the way back is the vendor file
+        assert!(text.contains(vendor_file) && text.contains("再刷一次"));
+        assert!(!text.contains("錄音讀取修補版") && !text.contains("25 筆錄音"));
+    }
+}
+
+#[test]
 fn record_read_patch_is_an_untested_warning() {
-    let (_, vendor_file) = known_patched_image(RECORD_PATCH_SHA256).expect("known patch");
+    let (_, vendor_file, _) = known_patched_image(RECORD_PATCH_SHA256).expect("known patch");
     let findings = check(&image_with(RECORD_PATCH_SHA256), RADIO, true, "Mar 9 2024");
     assert_eq!(verdict(&findings), Level::Warn); // needs the risk tick, but is not blocked
     let patch = patch_findings(RADIO, "Mar 9 2024");
@@ -250,7 +309,7 @@ fn record_read_patch_file() {
         return;
     }
     let img = inspect(&path).unwrap();
-    let (_, vendor_file) = known_patched_image(&img.sha256).expect("known patch");
+    let (_, vendor_file, _) = known_patched_image(&img.sha256).expect("known patch");
     assert_eq!(img.firmware_id, "308E.B6.TARSCB.003");
     let findings = check(&img, RADIO, true, "Mar 9 2024");
     // not BLOCK: the dialog's explicit confirmation applies

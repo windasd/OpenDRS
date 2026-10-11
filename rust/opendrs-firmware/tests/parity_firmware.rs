@@ -45,7 +45,7 @@ fn firmware_ids_match_python() {
     }
     let patched: BTreeMap<_, _> = KNOWN_PATCHED_IMAGES
         .iter()
-        .map(|&(sha, (name, file))| (sha, json!([name, file])))
+        .map(|&(sha, (name, file, note))| (sha, json!([name, file, note])))
         .collect();
     let mut tables = json!({
         "blocked": table(BLOCKED_IMAGES), "vendor": table(KNOWN_VENDOR_IMAGES), "patched": patched,
