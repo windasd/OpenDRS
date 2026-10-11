@@ -73,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     if args:
         window.open_path(Path(args[0]))
     window.show()
+    window.start_update_check()  # in the background, at most once a day (can be turned off)
     if migrated:
         window.statusBar().showMessage(migrated, 20_000)
     return app.exec()

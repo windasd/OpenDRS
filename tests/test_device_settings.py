@@ -17,6 +17,15 @@ def test_dual_band_label() -> None:
     assert frequency_problem(250 * MHZ, info.bands) is not None
 
 
+def test_band_widened_test_firmware_label() -> None:
+    bands = DeviceInfo("F136-520", "", "DRS-8500", "").bands
+    assert bands == ((136 * MHZ, 180 * MHZ), (400 * MHZ, 520 * MHZ))
+    for ok in (136, 178, 180, 400, 500, 520):
+        assert frequency_problem(ok * MHZ, bands) is None, ok
+    for bad in (135, 181, 250, 399, 521):
+        assert frequency_problem(bad * MHZ, bands) is not None, bad
+
+
 def test_zero_and_unknown_band_are_not_flagged() -> None:
     assert frequency_problem(0, BAND_TABLE["400-480"]) is None
     assert DeviceInfo("F999", "", "", "").bands is None

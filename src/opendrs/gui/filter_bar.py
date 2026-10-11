@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
     QPushButton,
     QTableView,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -115,11 +118,32 @@ class TablePage(QWidget):
         bar.addWidget(self.show_box)
         bar.addWidget(reset)
         bar.addWidget(self.count)
+        self.actions_bar = QHBoxLayout()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
+        layout.addLayout(self.actions_bar)
         layout.addLayout(bar)
         layout.addWidget(self.view)
         self._update_count()
+
+    def add_actions(self, actions: list[QAction | None]) -> None:
+        """Buttons for the page's commands (the menu items themselves, so text, icon,
+        tooltip and enabled state stay in step); None draws a separator."""
+        for action in actions:
+            if action is None:
+                line = QFrame()
+                line.setFrameShape(QFrame.Shape.VLine)
+                line.setFrameShadow(QFrame.Shadow.Sunken)
+                self.actions_bar.addWidget(line)
+                continue
+            button = QToolButton()
+            button.setObjectName("page_action")
+            button.setDefaultAction(action)
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            button.setAutoRaise(True)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # like toolbar buttons: no extra Tab stops
+            self.actions_bar.addWidget(button)
+        self.actions_bar.addStretch(1)
 
     def _on_kind(self, _index: int) -> None:
         assert self.kind is not None

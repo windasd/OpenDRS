@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -51,6 +52,15 @@ def test_ico_container_points_at_each_png() -> None:
         assert data[offset:offset + length] == pngs[size]
 
 
+def test_checksum_file_works_with_sha256sum(tmp_path: Path) -> None:
+    archive = tmp_path / "OpenDRS-9.9.9-win64.zip"
+    archive.write_bytes(b"zip bytes")
+    digest = build.write_checksum(archive)
+    line = (tmp_path / "OpenDRS-9.9.9-win64.zip.sha256").read_bytes()
+    assert line == f"{digest}  OpenDRS-9.9.9-win64.zip\n".encode()  # LF only: a CR breaks `sha256sum -c`
+    assert digest == hashlib.sha256(b"zip bytes").hexdigest()
+
+
 def test_rendered_icon_has_every_size(tmp_path: Path) -> None:
     out = tmp_path / "app.ico"
     build.render_icon(out)
@@ -90,7 +100,7 @@ def test_self_test_passes_from_source(tmp_path: Path, monkeypatch: pytest.Monkey
     result = json.loads(report.read_text(encoding="utf-8"))
     assert result["ok"] and result["version"] == __version__ and not result["frozen"]
     assert set(result["checks"]) == {"qt", "translations", "icon", "main_window", "pdf", "printer", "ssl",
-                                     "serial", "codecs"}
+                                     "serial", "codecs", "update"}
     assert os.environ["APPDATA"] == str(tmp_path / "mine")  # restored
     assert not (tmp_path / "mine").exists()  # the user's data folder was never touched
 

@@ -92,7 +92,7 @@ def _choice(text: str, options: list[tuple[str, int]], extra: dict[str, int] | N
             return value
     if extra and t in extra:
         return extra[t]
-    if t.isdigit() and int(t) in {v for _, v in options}:
+    if t.isdecimal() and int(t) in {v for _, v in options}:  # not isdigit: int("²") raises
         return int(t)
     raise CellError(f"無效的選項「{text.strip()}」（可用：{'、'.join(label for label, _ in options)}）")
 

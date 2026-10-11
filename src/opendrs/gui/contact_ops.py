@@ -7,11 +7,14 @@ from pathlib import Path
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from ..cleanup import clean_names, needs_cleaning, scan
-from ..contact_edit import ContactEditError, delete_contacts, shift_contact
+from ..codeplug import MAX_CONTACTS
+from ..contact_edit import ContactEditError, add_contact, delete_contacts, shift_contact
 from ..contact_import import ImportReport, NameFormat, append_contacts, import_users
 from ..contacts_csv import export_contacts, parse_contacts_csv
+from ..records import Contact
 from ..settings import default_dir
-from .constants import CSV_FILTER
+from .constants import CSV_FILTER, TABS
+from .contact_dialog import AddContactDialog
 from .radioid_dialog import RadioIdDialog
 
 
@@ -98,6 +101,42 @@ class ContactOpsMixin:
         project, report = clean_names(self._project)
         self._commit(project, "清除換行字元")
         return report.total
+
+    def add_contact(self, values: tuple[int, str, int] | None = None) -> int | None:
+        """Append one contact (asked for when ``values`` is None); returns its row."""
+        if not self._require_project("新增聯絡人"):
+            return None
+        if values is None:
+            if len(self._project.contacts) >= MAX_CONTACTS:  # say so before asking for anything
+                QMessageBox.information(self, "新增聯絡人", f"聯絡人已達對講機上限 {MAX_CONTACTS} 筆。")
+                return None
+            row = self.selected_row("contacts")
+            kind = self._project.contacts[row].kind if row is not None else Contact.GROUP_CALL
+
+            def problem(kind: int, name: str, call_id: int) -> str | None:
+                try:
+                    add_contact(self._project, kind, name, call_id, self.codec)
+                except ContactEditError as exc:
+                    return str(exc)
+                return None
+
+            dialog = AddContactDialog(kind, problem, parent=self)
+            if dialog.exec() != AddContactDialog.DialogCode.Accepted:
+                return None
+            values = dialog.values()
+        kind, name, call_id = values
+        try:
+            project, new_row = add_contact(self._project, kind, name, call_id, self.codec)
+        except ContactEditError as exc:
+            QMessageBox.warning(self, "新增聯絡人", str(exc))
+            return None
+        self._commit(project, f"新增聯絡人 {name.strip()}")
+        self._tabs.setCurrentIndex(1 + [k for k, _ in TABS].index("contacts"))
+        self.select_row("contacts", new_row)
+        if self.selected_row("contacts") != new_row:  # hidden by the search or a filter
+            self._pages["contacts"].reset()
+            self.select_row("contacts", new_row)
+        return new_row
 
     def selected_rows(self, key: str) -> list[int]:
         """Source rows of every selected cell in a table page (sorted, unique)."""

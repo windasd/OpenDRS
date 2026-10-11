@@ -25,6 +25,8 @@ _MHZ = 1_000_000
 # VHF + UHF variant rather than one continuous range.
 BAND_TABLE: dict[str, tuple[Band, ...]] = {
     "136-480": ((136 * _MHZ, 174 * _MHZ), (400 * _MHZ, 480 * _MHZ)),
+    # Not a factory variant: the band-widened test firmware (mkpatch_band_record.py) reports this.
+    "136-520": ((136 * _MHZ, 180 * _MHZ), (400 * _MHZ, 520 * _MHZ)),
     "136-174": ((136 * _MHZ, 174 * _MHZ),),
     "140-174": ((140 * _MHZ, 174 * _MHZ),),
     "150-170": ((150 * _MHZ, 170 * _MHZ),),

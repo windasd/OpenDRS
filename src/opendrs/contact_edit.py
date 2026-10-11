@@ -14,10 +14,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 
-from .codeplug import CONTACT_SIZE, CONTACTS_OFFSET, image_length_for, with_synced_image
+from .codeplug import (
+    CONTACT_SIZE,
+    CONTACTS_OFFSET,
+    MAX_CONTACTS,
+    image_length_for,
+    with_synced_image,
+)
 from .f136 import Project
+from .records import NAME_SIZE, Contact
 from .rxgroup import remap_members
-from .textcodec import NameCodec
+from .textcodec import NameCodec, NameEncodingError, encode_name
 
 
 class ContactEditError(ValueError):
@@ -96,3 +103,37 @@ def shift_contact(project: Project, row: int, delta: int) -> tuple[Project, int]
     image, _dropped = remap_members(project.image, lambda m: swap.get(m, m))
     updated = with_synced_image(replace(project, contacts=tuple(contacts), channels=channels, image=image))
     return updated, target
+
+
+def add_contact(project: Project, kind: int, name: str, call_id: int, codec: NameCodec,
+                capacity: int = MAX_CONTACTS) -> tuple[Project, int]:
+    """Append one contact after the last; returns (project, new row).
+
+    Nothing else is renumbered, so every reference stays valid. A contact with the same
+    type and ID is refused rather than renamed (an import overwrites its name instead).
+    """
+    if kind not in Contact.KINDS:
+        raise ContactEditError(f"不支援的聯絡人類型 {kind}")
+    if not 1 <= call_id <= Contact.MAX_ID:
+        raise ContactEditError(f"ID 必須介於 1 與 {Contact.MAX_ID:,}")
+    if len(project.contacts) >= capacity:
+        raise ContactEditError(f"聯絡人已達對講機上限 {capacity} 筆")
+    text = name.strip()
+    if not text:
+        raise ContactEditError("請輸入名稱")
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in text):
+        raise ContactEditError("名稱不可包含換行等控制字元")
+    for contact in project.contacts:
+        if (contact.kind, contact.call_id) == (kind, call_id):
+            raise ContactEditError(f"已有相同類型與 ID 的聯絡人：#{contact.index} {contact.name(codec)}")
+    try:
+        field = encode_name(text, NAME_SIZE, codec)
+    except NameEncodingError as exc:
+        raise ContactEditError(str(exc)) from exc
+    number = max((c.index for c in project.contacts), default=0) + 1
+    contacts = (*project.contacts, Contact.build(number, kind, field, call_id))
+    order = project.section_order
+    if "Contacts" not in order:
+        order = ("Contacts", *order)
+    updated = with_synced_image(replace(project, contacts=contacts, section_order=order))
+    return updated, len(contacts) - 1

@@ -21,7 +21,8 @@ KIND_LABELS = {"read": "讀取", "before_write": "寫入前"}
 BEFORE_WRITE = "before_write"
 STAMP_FORMAT = "%Y%m%d_%H%M%S"
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-_NAME = re.compile(r"^(?P<stamp>\d{8}_\d{6})_(?P<kind>read|before_write)_(?P<model>[0-9A-Za-z_-]+)\.F136$")
+_NAME = re.compile(r"(?P<stamp>\d{8}_\d{6})_(?P<kind>read|before_write)_(?P<model>[0-9A-Za-z_-]+)\.F136",
+                   re.ASCII)  # only the digits save_backup writes
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class Backup:
 
 def parse_name(name: str) -> tuple[datetime, str, str] | None:
     """(time, kind, model) from a backup file name, or None when it is not one."""
-    match = _NAME.match(name)
+    match = _NAME.fullmatch(name)  # not match + $: that also takes a trailing newline
     if match is None:
         return None
     try:

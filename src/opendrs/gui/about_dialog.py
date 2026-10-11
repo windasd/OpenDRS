@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __author__, __version__, hardware
+from .. import __author__, __url__, __version__, hardware
 from ..settings import default_dir
 from . import theme
 
@@ -42,6 +42,7 @@ def about_text(data_dir: Path | None = None) -> str:
     return "\n".join([
         f"{APP_NAME} {__version__}",
         f"作者：{__author__}",
+        f"網站：{__url__}",
         f"支援機型：{RADIO}",
         f"執行環境：{environment()}",
         f"程式位置：{Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0] else '?'}",
@@ -74,11 +75,15 @@ class AboutDialog(QDialog):
 
         self.version = QLabel(__version__)
         self.author = QLabel(__author__)
+        self.website = QLabel(f'<a href="{__url__}">{__url__}</a>')
+        self.website.setOpenExternalLinks(True)
+        self.website.setToolTip("原始碼、問題回報與新版本下載")
         folder = QLabel(f'<a href="{QUrl.fromLocalFile(str(self._dir)).toString()}">{self._dir}</a>')
         folder.setOpenExternalLinks(True)
         form = QFormLayout()
         form.addRow("版本", self.version)
         form.addRow("作者", self.author)
+        form.addRow("網站", self.website)
         form.addRow("支援機型", _wrapped(RADIO))
         form.addRow("執行環境", _wrapped(environment()))
         form.addRow("資料夾", folder)
@@ -94,6 +99,12 @@ class AboutDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.addButton(self.copy, QDialogButtonBox.ButtonRole.ActionRole)
         buttons.addButton(open_dir, QDialogButtonBox.ButtonRole.ActionRole)
+        check = getattr(parent, "check_for_updates", None)
+        if callable(check):
+            self.check_updates = QPushButton("檢查更新…")
+            self.check_updates.setAutoDefault(False)
+            self.check_updates.clicked.connect(lambda: (self.accept(), check()))
+            buttons.addButton(self.check_updates, QDialogButtonBox.ButtonRole.ActionRole)
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -102,12 +103,17 @@ class SlotTablePage(QWidget):
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         header.setStretchLastSection(True)
         self.table.cellDoubleClicked.connect(lambda row, _col: self._on_edit(row + 1))
+        self._in_use: list[bool] = []
+        self.add_button = QPushButton("新增清單…")
+        self.add_button.setToolTip("編輯第一個未使用的清單")
+        self.add_button.clicked.connect(self._add_new)
         self.edit_button = QPushButton("編輯選取的清單…")
         self.edit_button.clicked.connect(self._edit_selected)
         self.note = QLabel(note)
         self.note.setWordWrap(True)
         bar = QHBoxLayout()
         bar.addWidget(self.note, 1)
+        bar.addWidget(self.add_button)
         bar.addWidget(self.edit_button)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -118,6 +124,19 @@ class SlotTablePage(QWidget):
         rows = self.table.selectionModel().selectedRows()
         return rows[0].row() + 1 if rows else None
 
+    def first_unused(self) -> int | None:
+        """Number (1-based) of the first slot not in use."""
+        return next((row + 1 for row, used in enumerate(self._in_use) if not used), None)
+
+    def _add_new(self) -> None:
+        number = self.first_unused()
+        if number is None:
+            QMessageBox.information(self, "新增清單",
+                                    f"{len(self._in_use)} 個清單都已使用；請選一個編輯或清空後再用。")
+            return
+        self.table.selectRow(number - 1)
+        self._on_edit(number)
+
     def _edit_selected(self) -> None:
         number = self.selected_number()
         if number is not None:
@@ -127,6 +146,7 @@ class SlotTablePage(QWidget):
         """rows: (name, member count, members text, in use); returns slots in use."""
         self.table.setRowCount(len(rows))
         self.setEnabled(enabled)
+        self._in_use = [r[3] for r in rows]
         for row, (name, count, members, in_use) in enumerate(rows):
             values = (str(row + 1), name if in_use else "（未使用）", str(count), members)
             for col, text in enumerate(values):

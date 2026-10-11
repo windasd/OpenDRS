@@ -8,7 +8,8 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 QtCore = pytest.importorskip("PySide6.QtCore")
 from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtGui import QAction  # noqa: E402
+from PySide6.QtWidgets import QApplication, QToolButton, QWidget  # noqa: E402
 
 from opendrs import f136  # noqa: E402
 from opendrs.gui.models import make_models  # noqa: E402
@@ -698,3 +699,139 @@ def test_firmware_update_dialog_from_menu(app: QApplication, tmp_path: Path,
     dialog.reject()
     app.processEvents()
     assert load_settings().iap_path == str(custom)
+
+
+# ------------------------------------------------------------------ 新增 buttons on the pages
+DH = Path(__file__).parent / "fixtures" / "dh98vu_20250811.F136"
+
+
+def _page_buttons(page: QWidget) -> list[QToolButton]:
+    return page.findChildren(QToolButton, "page_action")
+
+
+def _page_button(page: QWidget, action: QAction) -> QToolButton:
+    return next(b for b in _page_buttons(page) if b.defaultAction() is action)
+
+
+def test_table_pages_have_add_buttons(app: QApplication, tmp_path: Path,
+                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    from PySide6.QtWidgets import QInputDialog
+
+    win, target = _window(tmp_path, monkeypatch, DH)
+    labels = {key: [b.text() for b in _page_buttons(win._pages[key])] for key in ("channels", "zones", "contacts")}
+    assert labels == {"channels": ["新增", "批次新增", "刪除", "上移", "下移"],
+                      "zones": ["新增", "刪除"],
+                      "contacts": ["新增", "RadioID 匯入", "刪除", "上移", "下移"]}
+    # The buttons are the menu items themselves: same tooltips, same enabled state.
+    add_channel = _page_button(win._pages["channels"], win._a_add_ch)
+    assert add_channel.toolTip() == win._a_add_ch.toolTip() and add_channel.icon().isNull() is False
+    win.select_row("channels", 8)  # HW_3
+    add_channel.click()
+    assert win._tabs.tabText(1) == "頻道（25）" and win._project.channels[9].name(NameCodec.BIG5) == "HW_3"
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("NEWZONE", True))
+    _page_button(win._pages["zones"], win._a_add_zone).click()
+    assert win._project.zones[-1].name(NameCodec.BIG5) == "NEWZONE" and win._tabs.tabText(2) == "分區（5）"
+    assert win.save() and len(f136.load(target).zones) == 5
+
+
+def test_add_contact_from_the_contacts_page(app: QApplication, tmp_path: Path,
+                                            monkeypatch: pytest.MonkeyPatch) -> None:
+    from opendrs.gui.contact_dialog import AddContactDialog
+    from opendrs.records import Contact
+
+    win, target = _window(tmp_path, monkeypatch, DH)
+    win.select_row("contacts", 6)  # #7, an all call: the new one starts as the same type
+    seen: dict = {}
+
+    def fill_in(dialog: AddContactDialog) -> int:
+        seen["kind"] = dialog.kind.currentData()
+        dialog.kind.setCurrentIndex(dialog.kind.findData(Contact.GROUP_CALL))
+        dialog.name.setText("TG99999")
+        dialog.call_id.setText("99999")
+        dialog.accept()
+        return dialog.result()
+
+    monkeypatch.setattr(AddContactDialog, "exec", fill_in)
+    _page_button(win._pages["contacts"], win._a_add_contact).click()
+    assert seen["kind"] == win._project.contacts[6].kind == 6
+    new = win._project.contacts[-1]
+    assert (new.index, new.kind, new.call_id, new.name(NameCodec.BIG5)) == (360, 4, 99999, "TG99999")
+    assert win._tabs.tabText(3) == "聯絡人（360）" and win.selected_row("contacts") == 359
+    assert win._a_undo.text() == "復原 新增聯絡人 TG99999"
+    assert win.save() and len(f136.load(target).contacts) == 360
+    win.undo()
+    assert len(win._project.contacts) == 359
+    # Cancelled: nothing changes.
+    monkeypatch.setattr(AddContactDialog, "exec", lambda dialog: 0)
+    assert win.add_contact() is None and len(win._project.contacts) == 359
+    # A new contact hidden by the type filter: the filter is cleared and the contact selected.
+    page = win._pages["contacts"]
+    assert page.kind is not None
+    page.kind.setCurrentIndex(page.kind.findData(Contact.GROUP_CALL))
+    row = win.add_contact((Contact.PRIVATE_CALL, "QA0ZZ", 4669999))
+    assert row == 359 and win.selected_row("contacts") == 359 and page.kind.currentIndex() == 0
+
+
+def test_add_contact_dialog_explains_a_refusal(app: QApplication) -> None:
+    from PySide6.QtWidgets import QDialog
+
+    from opendrs.gui.contact_dialog import AddContactDialog
+    from opendrs.records import Contact
+
+    dialog = AddContactDialog(Contact.PRIVATE_CALL,
+                              check=lambda kind, name, call_id: "已有相同類型與 ID 的聯絡人" if call_id == 1 else None)
+    assert dialog.kind.currentData() == Contact.PRIVATE_CALL
+    dialog.name.setText("QA0AA")
+    dialog.accept()
+    assert dialog.result() != QDialog.DialogCode.Accepted and "ID" in dialog.error.text()
+    validator = dialog.call_id.validator()
+    for typed in ("1,000", "+5", "-1"):
+        assert validator.validate(typed, 0)[0] != validator.State.Acceptable, typed
+    dialog.call_id.setText("1")
+    dialog.accept()
+    assert dialog.result() != QDialog.DialogCode.Accepted and "已有相同類型" in dialog.error.text()
+    dialog.call_id.setText("4660001")
+    dialog.accept()
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    assert dialog.values() == (Contact.PRIVATE_CALL, "QA0AA", 4660001)
+
+
+def test_slot_pages_add_the_first_unused_list(app: QApplication, tmp_path: Path,
+                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    from PySide6.QtWidgets import QMessageBox
+
+    win, _ = _window(tmp_path, monkeypatch, DH)
+    opened: list[int] = []
+    for page in (win._scan_page, win._group_page):
+        page._on_edit = opened.append
+        assert page.add_button.text() == "新增清單…"
+        page.add_button.click()
+    assert opened == [3, 2]  # scan lists 1-2 and RX group 1 are in use
+    told: list[str] = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: told.append(a[2]))
+    win._scan_page.set_rows([("A", 1, "x", True)] * 16, True)
+    win._scan_page.add_button.click()
+    assert opened == [3, 2] and "16 個清單都已使用" in told[-1]
+
+
+def test_menu_actions_call_their_command_without_arguments(app: QApplication, tmp_path: Path,
+                                                           monkeypatch: pytest.MonkeyPatch) -> None:
+    """QAction.triggered sends `checked`; a slot with a default parameter must not receive it."""
+    from PySide6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+
+    win, _ = _window(tmp_path, monkeypatch, DH)
+    asked: list[str] = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        lambda *a, **k: asked.append(a[2]) or QMessageBox.StandardButton.No)
+    win.select_row("channels", 0)
+    win._a_del_ch.trigger()  # also the Delete key: it must still ask first
+    assert asked and "刪除頻道" in asked[-1] and len(win._project.channels) == 24
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("MENUZONE", True))
+    win._a_add_zone.trigger()
+    assert win._project.zones[-1].name(NameCodec.BIG5) == "MENUZONE"
+    out = tmp_path / "channels.csv"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(out), ""))
+    export = next(a for a in win.findChildren(type(win._a_add_ch)) if a.text() == "匯出頻道 CSV…")
+    export.trigger()
+    assert out.is_file() and out.stat().st_size > 0
+

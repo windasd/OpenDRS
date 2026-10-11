@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -12,7 +14,13 @@ from opendrs.codeplug import (
     image_length_for,
     parse_stream,
 )
-from opendrs.contact_edit import ContactEditError, channels_calling, delete_contacts
+from opendrs.contact_edit import (
+    ContactEditError,
+    add_contact,
+    channels_calling,
+    delete_contacts,
+)
+from opendrs.records import NAME_SIZE, Contact
 from opendrs.rxgroup import (
     RX_AREA_END,
     RX_GROUPS_OFFSET,
@@ -120,3 +128,67 @@ def test_delete_last_contacts_keeps_others_identical(project: f136.Project) -> N
     updated, report = delete_contacts(project, [last], NameCodec.BIG5)
     assert report.renumbered == 0 and updated.contacts == project.contacts[:-1]
     assert updated.channels == project.channels
+
+
+# ------------------------------------------------------------------ adding a contact
+def test_add_contact_appends_after_the_last(project: f136.Project) -> None:
+    n = len(project.contacts)
+    updated, row = add_contact(project, Contact.GROUP_CALL, " TG99999 ", 99999, NameCodec.BIG5)
+    assert row == n and len(updated.contacts) == n + 1
+    new = updated.contacts[row]
+    assert (new.index, new.kind, new.call_id) == (n + 1, Contact.GROUP_CALL, 99999)
+    assert new.name(NameCodec.BIG5) == "TG99999"
+    assert updated.contacts[:n] == project.contacts and updated.channels == project.channels
+    # The image copy of the contacts and the counts follow, as after an import.
+    assert counts_in_image(updated.image) == Counts(4, 24, n + 1)
+    assert updated.image[0x1400:0x1400 + 16 * (n + 1)] == b"".join(c.raw for c in updated.contacts)
+    stream = build_stream(updated, "10/10/2026 21:00")
+    assert parse_stream(stream, Counts(4, 24, n + 1)).contacts == updated.contacts
+    assert f136.parse(f136.serialize(updated)) == updated
+
+
+def test_add_contact_takes_chinese_names_and_every_kind(project: f136.Project) -> None:
+    for kind in Contact.KINDS:
+        updated, row = add_contact(project, kind, "測試", 16_000_000 + kind, NameCodec.BIG5)
+        assert updated.contacts[row].kind == kind
+        assert updated.contacts[row].name(NameCodec.BIG5) == "測試"
+
+
+def test_add_contact_refuses_what_the_radio_cannot_hold(project: f136.Project) -> None:
+    existing = project.contacts[1]
+    with pytest.raises(ContactEditError, match=re.escape(existing.name(NameCodec.BIG5))):
+        add_contact(project, existing.kind, "OTHER", existing.call_id, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="名稱"):
+        add_contact(project, Contact.GROUP_CALL, "  ", 123, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="10 bytes"):
+        add_contact(project, Contact.GROUP_CALL, "ABCDEFGHIJK", 123, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="16,777,215"):
+        add_contact(project, Contact.GROUP_CALL, "X", 0, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="16,777,215"):
+        add_contact(project, Contact.GROUP_CALL, "X", Contact.MAX_ID + 1, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="類型"):
+        add_contact(project, 9, "X", 123, NameCodec.BIG5)
+    with pytest.raises(ContactEditError, match="上限 359"):
+        add_contact(project, Contact.GROUP_CALL, "X", 123, NameCodec.BIG5, capacity=len(project.contacts))
+    with pytest.raises(ContactEditError, match="控制字元"):
+        add_contact(project, Contact.GROUP_CALL, "AB\nCD", 123, NameCodec.BIG5)
+
+
+def test_add_contact_stops_at_the_radios_limit(project: f136.Project) -> None:
+    field = b"X".ljust(NAME_SIZE, b"\0")
+    full = replace(project, contacts=tuple(Contact.build(i, Contact.GROUP_CALL, field, i) for i in range(1, 1001)))
+    with pytest.raises(ContactEditError, match="上限 1000"):
+        add_contact(full, Contact.GROUP_CALL, "X", 5000, NameCodec.BIG5)
+
+
+def test_add_contact_numbers_after_the_highest(project: f136.Project) -> None:
+    gapped = replace(project, contacts=(*project.contacts[:-1], project.contacts[-1].with_index(500)))
+    updated, row = add_contact(gapped, Contact.GROUP_CALL, "NEW", 99999, NameCodec.BIG5)
+    assert updated.contacts[row].index == 501
+
+
+def test_add_contact_to_a_project_without_contacts() -> None:
+    empty = f136.Project()
+    updated, row = add_contact(empty, Contact.PRIVATE_CALL, "QA0AA", 4660001, NameCodec.ASCII)
+    assert row == 0 and updated.contacts[0].index == 1
+    assert "Contacts" in updated.section_order

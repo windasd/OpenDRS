@@ -97,6 +97,8 @@ class Settings:
     iap_path: str = ""  # vendor IAP+Flash.exe (empty = default install location)
     ambep2_path: str = ""  # vendor ambep2.exe for recordings (empty = C:\wav\ambep2.exe)
     recordings_dir: str = ""  # where downloaded recordings go (empty = <data dir>\recordings)
+    check_updates: bool = True  # look for a newer release on GitHub at start-up, at most daily
+    last_update_check: str = ""  # ISO timestamp (UTC) of the last automatic check
 
     def with_recent(self, path: str) -> Settings:
         items = (path,) + tuple(p for p in self.recent_files if p != path)
@@ -107,6 +109,8 @@ def load_settings(directory: Path | None = None) -> Settings:
     path = (directory or default_dir()) / "settings.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise TypeError("settings.json is not a JSON object")  # caught below: defaults
         return Settings(
             name_codec=NameCodec(data.get("name_codec", NameCodec.BIG5.value)),
             recent_files=tuple(str(p) for p in data.get("recent_files", [])),
@@ -116,6 +120,8 @@ def load_settings(directory: Path | None = None) -> Settings:
             iap_path=str(data.get("iap_path", "")),
             ambep2_path=str(data.get("ambep2_path", "")),
             recordings_dir=str(data.get("recordings_dir", "")),
+            check_updates=bool(data.get("check_updates", True)),
+            last_update_check=str(data.get("last_update_check", "")),
         )
     except FileNotFoundError:
         return Settings()

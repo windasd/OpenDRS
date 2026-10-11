@@ -124,6 +124,18 @@ def test_identity_mismatch_rules() -> None:
     assert "無法辨識" in identity_mismatch(project, replace(ok, model=""))
 
 
+def test_identity_mismatch_with_the_band_widened_test_firmware() -> None:
+    """That firmware reports +136-520MHZ+ and writes F136-520 at settings +0x50 on a read."""
+    widened = RadioIdentity.parse(b"308E.BBKTARSCB.003\0+DRS-8500+136-520MHZ+\0")
+    assert widened.band == "136-520"
+    old = f136.load(CAP / "written_project.F136")  # read from the vendor firmware: F136-480
+    assert "136-480" in identity_mismatch(old, widened) and "136-520" in identity_mismatch(old, widened)
+    image = bytearray(old.image)
+    image[0x50:0x58] = b"F136-520"
+    reread = replace(old, image=bytes(image))
+    assert reread.device.band_label == "F136-520" and identity_mismatch(reread, widened) is None
+
+
 def test_save_backup_names(radio: SimulatedRadio, tmp_path: Path) -> None:
     result = RadioClient(radio).read_codeplug()
     path = save_backup(result, tmp_path / "b", "read", when=datetime(2026, 10, 8, 18, 0, 0))

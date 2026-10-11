@@ -60,7 +60,17 @@ def test_refuses_other_code_and_live_code_in_the_cave() -> None:
     call = struct.pack("<HH", (0xE000_0000 | off) >> 16, off & 0xFFFF)
     with pytest.raises(fwpatch.PatchError, match="進入被覆寫的區域"):
         fwpatch.patch_record_read(synthetic({at: call}))
+    # the same with a 32-bit compare-with-zero branch (bez r13), common in this firmware
+    bez = struct.pack("<HH", 0xE90D, ((target - at) // 2) & 0xFFFF)
+    with pytest.raises(fwpatch.PatchError, match="進入被覆寫的區域"):
+        fwpatch.patch_record_read(synthetic({at: bez}))
     assert "太小" in fwpatch.record_read_status(b"\0" * 100)
+
+
+@pytest.mark.skipif(not VENDOR_03.is_file(), reason="vendor firmware not on this machine")
+def test_refs_into_sees_bez32() -> None:
+    # bez r13 at 0x03018928 jumps to 0x03018BBA (the VFO keypad first-digit check)
+    assert "03018928->03018BBA" in fwpatch.refs_into(VENDOR_03.read_bytes(), 0x03018BBA, 0x03018BBC)
 
 
 @pytest.mark.skipif(not VENDOR_03.is_file(), reason="vendor firmware not on this machine")

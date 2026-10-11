@@ -29,6 +29,9 @@ A_BASE, CUT, B_BASE = 0x0300C000, 0x0A9F5C, 0x00010000
 CAVE_START, CAVE_END = 0x03027024, 0x0302703E
 DEAD_CODE = (0x03027024, 0x0302705E)  # instructions of the dead dispatcher (its pool follows)
 BRANCH_SITES = (0x03026E5C, 0x03026EC6)
+# 32-bit "compare register with zero and branch" (0xE800 | sop << 5 | rx, then a 16-bit offset):
+# 1 bnezad, 8 bez, 9 bnez, 10 bhz, 11 blsz, 12 blz, 13 bhsz. e.g. bez r13 = E90D at 0x03018928.
+BRANCH_ZERO_SOPS = frozenset({1, 8, 9, 10, 11, 12, 13})
 
 # Vendor builds the patch was checked against (whole-file scan done offline).
 KNOWN_BASES = {
@@ -98,7 +101,8 @@ def refs_into(data: bytes, lo: int, hi: int) -> list[str]:
         tgt = None
         if w >> 26 == 0b111000:                                   # bsr32
             tgt = at + _sext(w & 0x3FFFFFF, 26) * 2
-        elif h >> 8 == 0xE8 and h & 0x1F == 0:                    # br32 / bt32 / bf32
+        elif ((h >> 8 == 0xE8 and h & 0x1F == 0)                  # br32 / bt32 / bf32
+              or (h >> 10 == 0b111010 and (h >> 5) & 0x1F in BRANCH_ZERO_SOPS)):  # bez32, bnez32, … (rx vs 0)
             tgt = at + _sext(n, 16) * 2
         elif h >> 10 == 0b111010 and (h >> 5) & 0x1F in (0x14, 0x16, 0x17):  # lrw32 / jmpi32 / jsri32
             tgt = (at & ~3) + n * 4

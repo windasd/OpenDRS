@@ -100,6 +100,7 @@ def version_info(version: str) -> str:
         "FileVersion": version,
         "InternalName": NAME,
         "LegalCopyright": "© windasd",
+        "Comments": "https://github.com/windasd/OpenDRS",
         "OriginalFilename": f"{NAME}.exe",
         "ProductName": "OpenDRS",
         "ProductVersion": version,
@@ -171,10 +172,16 @@ def package(version: str) -> Path:
     shutil.copy2(ROOT / "README.md", DIST / NAME / "README.md")
     add_licenses(DIST / NAME / "licenses")
     archive = Path(shutil.make_archive(str(DIST / f"{NAME}-{version}-win64"), "zip", DIST, NAME))
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    archive.with_name(archive.name + ".sha256").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
+    digest = write_checksum(archive)
     print(f"{archive}  {archive.stat().st_size / 1e6:.1f} MB  sha256 {digest}")
     return archive
+
+
+def write_checksum(archive: Path) -> str:
+    """``<archive>.sha256`` in `sha256sum -c` format; bytes, so Windows does not add a CR."""
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    archive.with_name(archive.name + ".sha256").write_bytes(f"{digest}  {archive.name}\n".encode("ascii"))
+    return digest
 
 
 def main() -> int:

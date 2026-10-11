@@ -24,6 +24,8 @@ RADIO = "308E.BBKTARSCB.003"
 VENDOR = Path(__file__).resolve().parents[2] / "C7000_DR8500UV_4819_03_136174_400480.bin"
 RECORD_PATCH = Path(__file__).resolve().parents[2] / "DR8500UV_B6_record_read.bin"
 RECORD_PATCH_SHA256 = "86d1ea6579eeabb4d1c2dee451bc3f89f3583a3c444d9c592fe26e7e8b3cb252"
+BAND_RECORD_SHA256 = "b31dc8893580c3c6e6ccc2ae922aefc9bd1a72bb1c756ae8339a9c037403cad3"
+BAND_KEYPAD_SHA256 = "8953e3e30285c0c55bff59dea8dd894f50a0816312f20758de9383f58e86d8ae"
 
 
 def _image(tmp_path: Path, firmware_id: bytes, date: bytes = b"Mar  9 2024", name: str = "fw.bin") -> Path:
@@ -106,8 +108,34 @@ def test_vendor_file_and_band_patches() -> None:
     for patched in VENDOR.parent.glob("DR8500UV_136-180_400-520*.bin"):
         p = inspect(patched)
         band = check(p, RADIO, True, "Mar 9 2024")
+        if p.sha256 in (BAND_RECORD_SHA256, BAND_KEYPAD_SHA256):  # test builds made on request: warn
+            assert verdict(band) is Level.WARN and any("頻段限制放寬" in f.text for f in band)
+            continue
         assert p.sha256 in BLOCKED_IMAGES and verdict(band) is Level.BLOCK
         assert any(f.level is Level.BLOCK and "頻段限制被放寬" in f.text for f in band)
+
+
+def test_band_widened_record_image_warns_what_is_unverified() -> None:
+    image = FirmwareFile(Path("fw.bin"), 1024, BAND_RECORD_SHA256, "308E.B6.TARSCB.003", "Mar 9 2024")
+    findings = check(image, RADIO, True, "Mar 9 2024")
+    assert verdict(findings) is Level.WARN and BAND_RECORD_SHA256 not in BLOCKED_IMAGES
+    patch = [f for f in findings if "改頻段測試版" in f.text]
+    assert len(patch) == 1 and patch[0].level is Level.WARN
+    text = patch[0].text
+    assert "136–180／400–520" in text and "F136-520" in text and "假負載" in text and "未經驗證" in text
+    assert VENDOR.name in text and "再刷一次" in text  # same build as the radio: the way back
+    assert "錄音讀取修補版" not in text and "25 筆錄音" not in text  # not the record-only wording
+    assert "已在 BK4819 實機" in text and "無法輸入 5 開頭" in text  # what the flash on 2026-10-11 showed
+
+
+def test_band_widened_keypad_image_still_warns_about_the_uncalibrated_band() -> None:
+    image = FirmwareFile(Path("fw.bin"), 1024, BAND_KEYPAD_SHA256, "308E.B6.TARSCB.003", "Mar 9 2024")
+    findings = check(image, RADIO, True, "Mar 9 2024")
+    assert verdict(findings) is Level.WARN and BAND_KEYPAD_SHA256 not in BLOCKED_IMAGES
+    text = next(f.text for f in findings if "鍵盤修正" in f.text)
+    assert "108 bytes" in text and "5 開頭" in text and "假負載" in text and "未經驗證" in text
+    assert "確認鍵盤可正常輸入 5XX MHz" in text  # verified on the radio 2026-10-11
+    assert VENDOR.name in text and "再刷一次" in text
 
 
 def test_record_read_patch_is_an_untested_warning() -> None:

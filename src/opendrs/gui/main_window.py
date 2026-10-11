@@ -32,6 +32,7 @@ from ..cleanup import scan
 from ..diff import diff_projects
 from ..f136 import F136FormatError, Project
 from ..history import History
+from ..records import NAME_SIZE
 from ..settings import Settings, load_settings, save_settings
 from ..textcodec import NameCodec, suggest_codec
 from . import theme
@@ -72,12 +73,13 @@ from .radio_panel import RadioPanel
 from .record_filter import RecordFilterProxy
 from .scan_page import ScanListPage
 from .settings_page import SettingsPage
+from .update_ops import UpdateOpsMixin
 
 log = logging.getLogger(__name__)
 
 
 class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMixin, RadioOpsMixin,
-                 PrintOpsMixin, QMainWindow):
+                 PrintOpsMixin, UpdateOpsMixin, QMainWindow):
     def __init__(self, settings: Settings | None = None) -> None:
         super().__init__()
         self._settings = settings or load_settings()
@@ -146,7 +148,10 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         if tip:
             act.setStatusTip(tip)
             act.setToolTip(tip)
-        act.triggered.connect(slot)
+        # QAction.triggered sends `checked`, and PySide passes it to any slot that takes a
+        # parameter: delete_channel(confirm) got False and deleted without asking, add_zone(name)
+        # got False and failed. Menu items and page buttons call their slot with no arguments.
+        act.triggered.connect(lambda: slot())
         return act
 
     def _build_ui(self) -> None:
@@ -168,29 +173,32 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         a_diff = self._action("比較專案…", self.compare_dialog,
                               tip="與另一個專案逐位元組比較，用來找出設定存放的位置", icon_name="compare")
         a_find = self._action("搜尋", self._focus_filter, K.Find, icon_name="search")
-        a_add_ch = self._action("新增頻道（複製選取的頻道）", self.add_channel,
-                                tip="複製目前選取的頻道，加在同一分區的最後面；掃描清單與其他頻道的編號不受影響",
-                                icon_name="plus")
+        self._a_add_ch = self._action("新增頻道（複製選取的頻道）", self.add_channel,
+                                      tip="複製目前選取的頻道，加在同一分區的最後面；掃描清單與其他頻道的編號不受影響",
+                                      icon_name="plus", short="新增")
         self._a_del_ch = self._action("刪除頻道", self.delete_channel, K.Delete,
                                       tip="刪除選取的頻道；同分區之後的頻道編號與掃描清單會自動調整",
-                                      icon_name="trash")
+                                      icon_name="trash", short="刪除")
         self._a_del_ch.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self._a_del_contacts = self._action("刪除選取的聯絡人", self.delete_contacts, K.Delete,
                                             tip="刪除選取的聯絡人；編號往前遞補，頻道與接收群組自動調整",
-                                            icon_name="trash")
+                                            icon_name="trash", short="刪除")
+        self._a_add_contact = self._action("新增聯絡人…", self.add_contact,
+                                           tip="輸入類型、名稱與 ID，新增一筆聯絡人（加在清單最後面，其他編號不變）",
+                                           icon_name="plus", short="新增")
         self._a_del_contacts.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         up, down = QKeySequence("Ctrl+Up"), QKeySequence("Ctrl+Down")
         self._a_ch_up = self._action("上移頻道", lambda: self.shift_channel(-1), up, icon_name="up",
-                                     tip="與同分區的上一台交換位置；掃描清單等引用跟著調整")
+                                     tip="與同分區的上一台交換位置；掃描清單等引用跟著調整", short="上移")
         self._a_ch_down = self._action("下移頻道", lambda: self.shift_channel(1), down, icon_name="down",
-                                       tip="與同分區的下一台交換位置；掃描清單等引用跟著調整")
+                                       tip="與同分區的下一台交換位置；掃描清單等引用跟著調整", short="下移")
         self._a_ct_up = self._action("上移聯絡人", lambda: self.shift_contact(-1), up, icon_name="up",
-                                     tip="與上一筆交換位置；頻道發話對象與接收群組跟著調整")
+                                     tip="與上一筆交換位置；頻道發話對象與接收群組跟著調整", short="上移")
         self._a_ct_down = self._action("下移聯絡人", lambda: self.shift_contact(1), down, icon_name="down",
-                                       tip="與下一筆交換位置；頻道發話對象與接收群組跟著調整")
+                                       tip="與下一筆交換位置；頻道發話對象與接收群組跟著調整", short="下移")
         for act in (self._a_ch_up, self._a_ch_down, self._a_ct_up, self._a_ct_down):
             act.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        a_batch = self._action("批次新增頻道…", self.batch_add_channels, icon_name="plus",
+        a_batch = self._action("批次新增頻道…", self.batch_add_channels, icon_name="plus", short="批次新增",
                                tip="以選取的頻道為範本，一次新增多台（頻率依間隔遞增、名稱依序編號）")
         a_read = self._action("讀取對講機…", self.read_from_radio,
                               tip="經寫頻線讀取對講機目前的設定（自動保留備份）", icon_name="read", short="讀取")
@@ -217,19 +225,26 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         m_edit.addSeparator()
         m_edit.addActions([a_find, a_clean])
         m_contacts = bar.addMenu("聯絡人(&C)")
-        m_contacts.addActions([a_radioid, a_csv_in, a_csv_out])
+        m_contacts.addActions([self._a_add_contact, a_radioid, a_csv_in, a_csv_out])
         m_contacts.addSeparator()
         m_contacts.addActions([self._a_ct_up, self._a_ct_down, self._a_del_contacts])
-        a_add_zone = self._action("新增分區…", self.add_zone,
-                                  tip="在最後新增一個分區，第一台頻道複製目前選取的頻道")
-        a_del_zone = self._action("刪除分區", self.delete_zone,
+        self._a_add_zone = self._action("新增分區…", self.add_zone, icon_name="plus", short="新增",
+                                        tip="在最後新增一個分區，第一台頻道複製目前選取的頻道")
+        a_del_zone = self._action("刪除分區", self.delete_zone, icon_name="trash", short="刪除",
                                   tip="刪除選取的分區與其中的頻道；之後的分區與掃描清單自動調整")
+        # The same commands as buttons on each table page (None: separator).
+        self._page_actions = {
+            "channels": [self._a_add_ch, a_batch, None, self._a_del_ch, self._a_ch_up, self._a_ch_down],
+            "zones": [self._a_add_zone, None, a_del_zone],
+            "contacts": [self._a_add_contact, a_radioid, None,
+                         self._a_del_contacts, self._a_ct_up, self._a_ct_down],
+        }
         m_channels = bar.addMenu("頻道／分區(&H)")
-        m_channels.addActions([a_add_ch, a_batch, self._a_del_ch])
+        m_channels.addActions([self._a_add_ch, a_batch, self._a_del_ch])
         m_channels.addSeparator()
         m_channels.addActions([self._a_ch_up, self._a_ch_down])
         m_channels.addSeparator()
-        m_channels.addActions([a_add_zone, a_del_zone])
+        m_channels.addActions([self._a_add_zone, a_del_zone])
         m_channels.addSeparator()
         m_channels.addAction(self._action("匯出頻道 CSV…", self.export_channels_csv,
                                           tip="把所有頻道匯出成 Excel 可開啟的 CSV（依分區排列）"))
@@ -251,7 +266,10 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         m_tools = bar.addMenu("工具(&T)")
         m_tools.addAction(a_diff)
         m_tools.addSeparator()
-        m_tools.addAction(self._action("關於本軟體…", self.about, tip="版本、作者與執行環境"))
+        self._a_update = self._action("檢查更新…", self.check_for_updates,
+                                      tip="查詢 GitHub 上的最新版本；exe 版可直接下載並安裝")
+        m_tools.addAction(self._a_update)
+        m_tools.addAction(self._action("關於本軟體…", self.about, tip="版本、作者、網站與執行環境"))
         m_view = bar.addMenu("檢視(&V)")
         m_theme = m_view.addMenu("外觀")
         self._theme_actions = {}
@@ -325,6 +343,7 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
 
     def _table_page(self, key: str) -> QWidget:
         page = TablePage(key, self._models[key])
+        page.add_actions(self._page_actions[key])
         if key == "channels":
             self._contact_picker = ProjectPickerDelegate(contact_choices, page.view)
             page.view.setItemDelegateForColumn(CHANNEL_TX_CONTACT_COLUMN, self._contact_picker)
@@ -488,7 +507,8 @@ class MainWindow(DeviceEditingMixin, ChannelOpsMixin, ContactOpsMixin, ListOpsMi
         self._source = ""
         for page in self._pages.values():
             page.reset()
-        guessed = suggest_codec([r.raw for r in (*project.channels, *project.zones, *project.contacts)])
+        guessed = suggest_codec([r.raw[r.NAME_OFFSET:r.NAME_OFFSET + NAME_SIZE]
+                                 for r in (*project.channels, *project.zones, *project.contacts)])
         if guessed is not None and guessed is not self.codec:
             self._codec_box.setCurrentIndex(list(NameCodec).index(guessed))
         self._settings = self._settings.with_recent(str(path))

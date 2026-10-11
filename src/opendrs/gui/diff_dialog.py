@@ -44,6 +44,6 @@ class DiffDialog(QDialog):
             return
         try:
             Path(path).write_text(self._title + "\r\n\r\n" + self.text().replace("\n", "\r\n"),
-                                  encoding="utf-8-sig")
+                                  encoding="utf-8-sig", newline="")  # already CRLF
         except OSError as exc:
             QMessageBox.critical(self, "儲存失敗", str(exc))

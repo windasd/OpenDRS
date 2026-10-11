@@ -155,7 +155,10 @@ def suggest_codec(fields: list[bytes]) -> NameCodec | None:
 def read_legacy_text(data: bytes) -> tuple[str, str]:
     """Decode a legacy config/help file, returning ``(text, encoding_used)``."""
     if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
-        return data.decode("utf-16"), "utf-16"
+        try:
+            return data.decode("utf-16"), "utf-16"
+        except UnicodeDecodeError:
+            pass  # not UTF-16 after all (e.g. a cp1252 file starting with "ÿþ"): try the others
     try:
         return data.decode("utf-8-sig"), "utf-8-sig"
     except UnicodeDecodeError:

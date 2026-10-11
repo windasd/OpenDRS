@@ -10,12 +10,15 @@ file is compared with what the radio reported on its last read:
   same build -> also OK;
 * same hardware prefix, otherwise different -> warning, the user must confirm explicitly;
 * a different hardware prefix or no ID -> blocked;
-* the band-patched images produced during the firmware analysis -> blocked (band limits
+* the band-only patched images produced during the firmware analysis -> blocked (band limits
   widened; RF behaviour outside the vendor bands is unverified);
 * the known record-read patched images (a vendor file + 30 bytes so the radio answers the
   PC call-recording download commands, fwpatch.py) -> warning that needs the explicit tick:
   verified on a radio; on a radio running the same build it is undone by flashing the
-  vendor file again.
+  vendor file again;
+* the band-widened images with the record-read fix (and the VFO keypad fix), made on request
+  for a test (mkpatch_band_record.py, mkpatch_keypad.py) -> the same kind of warning, saying
+  what is unverified.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ BUILD_DATE = re.compile(rb"[A-Z][a-z]{2} [ 0-9]\d \d{4}")
 MAX_IMAGE = 4 * 1024 * 1024
 DEFAULT_IAP_EXE = Path(r"C:\Program Files (x86)\IAP(APP+FLASH)\IAP+Flash.exe")
 
-# SHA-256 of the band-patched images made during the analysis (never flash these).
+# SHA-256 of the band-only patched images made during the analysis (never flash these).
 BLOCKED_IMAGES = {
     "7d10b46b350ff818d7d9a6882baf9add21a093b6c1d4a683a759bbeb950830bf": "136-180／400-520 改頻段版",
     "7b623a85f0b29874b78e9f721cb8c564190b3dd409914012d87d90d0cf12c967": "136-180／400-520 改頻段版（改標示）",
@@ -47,15 +50,30 @@ KNOWN_VENDOR_IMAGES = {
 }
 
 
-# Modified images made on request (mkpatch_record.py); flashable only after confirmation.
-# SHA-256 -> (description, the vendor file it was made from).
+RECORD_READ_NOTE = "這 30 bytes 的修補已於 2026-10-09 在 BK4819 實機（03 版）刷入並讀取 25 筆錄音驗證"
+_BAND_WIDENED = ("頻段限制放寬為 136–180／400–520 MHz（對講機改回報 F136-520）：超出原廠 136–174／400–480 MHz "
+                 "的部分沒有出廠校準，超出校準表最後節點時發射功率、頻偏與靜噪如何計算尚未查明，未經驗證，"
+                 "發射測試請接假負載；錄音讀取的 30 bytes 與已實機驗證的版本相同。")
+BAND_WIDENED_NOTE = (_BAND_WIDENED + "2026-10-11 已在 BK4819 實機（03 版）刷入，旋鈕可調到 5XX MHz，"
+                     "但 VFO 鍵盤無法輸入 5 開頭的頻率（改用加了鍵盤修正的版本）")
+BAND_WIDENED_KEYPAD_NOTE = (_BAND_WIDENED + "另修正 VFO 鍵盤首位數字只接受 1、4 的檢查，可輸入 5 開頭的頻率；"
+                            "2026-10-11 已在 BK4819 實機（03 版）刷入，確認鍵盤可正常輸入 5XX MHz")
+
+# Modified images made on request (mkpatch_record.py, mkpatch_band_record.py); flashable only
+# after confirmation. SHA-256 -> (description, the vendor file it was made from, what is verified).
 KNOWN_PATCHED_IMAGES = {
     "86d1ea6579eeabb4d1c2dee451bc3f89f3583a3c444d9c592fe26e7e8b3cb252":
         ("錄音讀取修補版（原廠韌體改 30 bytes，讓對講機回應電腦讀取錄音的指令）",
-         "C7000_DR8500UV_4819_03_136174_400480.bin"),
+         "C7000_DR8500UV_4819_03_136174_400480.bin", RECORD_READ_NOTE),
     "8f5a225f5dbe76706830ce99331e40605b55549695e30e7ab0f05b188ba3e7fa":
         ("錄音讀取修補版（業餘頻段 05 版原廠韌體改 30 bytes，讓對講機回應電腦讀取錄音的指令）",
-         "C7000_DR8500UV_4819_05_144146_430440.bin"),
+         "C7000_DR8500UV_4819_05_144146_430440.bin", RECORD_READ_NOTE),
+    "b31dc8893580c3c6e6ccc2ae922aefc9bd1a72bb1c756ae8339a9c037403cad3":
+        ("136-180／400-520 改頻段測試版加錄音讀取修補（原廠韌體改 76 bytes）",
+         "C7000_DR8500UV_4819_03_136174_400480.bin", BAND_WIDENED_NOTE),
+    "8953e3e30285c0c55bff59dea8dd894f50a0816312f20758de9383f58e86d8ae":
+        ("136-180／400-520 改頻段測試版加錄音讀取修補與鍵盤修正（原廠韌體改 108 bytes）",
+         "C7000_DR8500UV_4819_03_136174_400480.bin", BAND_WIDENED_KEYPAD_NOTE),
 }
 
 # The two characters after "<hw>.B" in a firmware ID: the image holds the template "6.",
@@ -141,7 +159,7 @@ def _label(firmware_id: str, date: str) -> str:
     return f"{firmware_id}（{date}）" if date else firmware_id
 
 
-def _patched_finding(name: str, vendor_file: str, image: FirmwareFile, radio_firmware: str,
+def _patched_finding(name: str, vendor_file: str, note: str, image: FirmwareFile, radio_firmware: str,
                      radio_date: str) -> Finding:
     """A patched vendor image: undone by flashing the vendor file again, if that is the radio's build."""
     radio, base = _label(radio_firmware, radio_date), f"修補所用的原廠檔 {vendor_file} "
@@ -155,7 +173,7 @@ def _patched_finding(name: str, vendor_file: str, image: FirmwareFile, radio_fir
     else:  # no radio read yet, or a build date is missing
         current = f"對講機目前是 {radio}" if radio_firmware else "尚未從對講機讀取"
         way_back = f"{current}，無法確認與{base}是同一版本；若不是，{no_way_back}"
-    return Finding(Level.WARN, f"這是{name}。{way_back}。這 30 bytes 的修補已於 2026-10-09 在 BK4819 實機（03 版）刷入並讀取 25 筆錄音驗證")
+    return Finding(Level.WARN, f"這是{name}。{way_back}。{note}")
 
 
 def check(image: FirmwareFile, radio_firmware: str, has_recent_backup: bool,

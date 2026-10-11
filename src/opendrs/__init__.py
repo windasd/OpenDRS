@@ -2,3 +2,4 @@
 
 __version__ = "0.1.0"
 __author__ = "windasd"
+__url__ = "https://github.com/windasd/OpenDRS"

@@ -95,6 +95,16 @@ def _serial() -> str:
     return f"{len(list_ports())} 個連接埠"
 
 
+def _update() -> str:
+    from . import update
+
+    if not update.parse_version("v0.2.0") > update.parse_version("0.1.0"):
+        raise RuntimeError("版本比較錯誤")
+    if "Move-Item" not in update.updater_script():
+        raise RuntimeError("更新腳本不完整")
+    return update.API_LATEST
+
+
 def _codecs() -> str:
     for codec in ("big5", "gbk", "cp950"):
         "測試頻道".encode(codec)
@@ -111,7 +121,7 @@ def run(report: Path) -> int:
         checks: list[tuple[str, Callable[[], str]]] = [
             ("qt", _qt), ("translations", _translations), ("icon", _icon), ("main_window", _main_window),
             ("pdf", lambda: _pdf(Path(tmp))), ("printer", _printer), ("ssl", _ssl), ("serial", _serial),
-            ("codecs", _codecs),
+            ("codecs", _codecs), ("update", _update),
         ]
         try:
             for name, check in checks:
