@@ -916,6 +916,198 @@
 ]
 },
 {
+"op": "add_contact",
+"args": [
+4,
+"NEWTG",
+9990001
+],
+"out": {
+"sha": "e40acf3ad7893a3f82817b9e54681655e217024bf4136d3b17a7cf0e08d16f86",
+"row": 359
+}
+},
+{
+"op": "add_contact",
+"args": [
+5,
+"  Bob  ",
+9990002
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#17 QA0ADN␍␊"
+}
+},
+{
+"op": "add_contact",
+"args": [
+6,
+"中文名稱",
+16777215
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#8 ALL215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+7,
+"X",
+1
+],
+"out": {
+"sha": "f84d44109b4de142901c38267667d19ff301f2f3090a02d728f83757cd193d4d",
+"row": 359
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"名稱超過十個位元組",
+9990003
+],
+"out": {
+"error": "名稱需 18 bytes，超過欄位上限 10 bytes（中文字每字 2 bytes）"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"　",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"A\nB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"AB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+3,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 3"
+}
+},
+{
+"op": "add_contact",
+"args": [
+8,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 8"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+0
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+16777216
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"😀",
+5
+],
+"out": {
+"error": "「😀」無法以 Big5（繁體） 表示"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+359
+],
+"out": {
+"error": "聯絡人已達對講機上限 359 筆"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+360
+],
+"out": {
+"sha": "77d34d9dc1deb72394963a33abbd010acc17d233dc3ed9109d149e3c72733278",
+"row": 359
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"DUP",
+46001
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#1 TG46001_CN"
+}
+},
+{
 "op": "rx_groups",
 "args": [],
 "out": [
@@ -8199,6 +8391,199 @@ false
 ]
 },
 {
+"op": "add_contact",
+"args": [
+4,
+"NEWTG",
+9990001
+],
+"out": {
+"sha": "643269e81e7ba53079133568001107b3f5aeab162b356d29396133126645a494",
+"row": 8
+}
+},
+{
+"op": "add_contact",
+"args": [
+5,
+"  Bob  ",
+9990002
+],
+"out": {
+"sha": "7548f10b853929d6b76580399a250227b4ef27a5077d28a7ddb74b80d35025d7",
+"row": 8
+}
+},
+{
+"op": "add_contact",
+"args": [
+6,
+"中文名稱",
+16777215
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#4 ALL215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+7,
+"X",
+1
+],
+"out": {
+"sha": "64ad8d1c90ce4fd2a6e210373c41653553dc5b81bfa9037258e190f24c376750",
+"row": 8
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"名稱超過十個位元組",
+9990003
+],
+"out": {
+"error": "名稱需 18 bytes，超過欄位上限 10 bytes（中文字每字 2 bytes）"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"　",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"A\nB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"AB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+3,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 3"
+}
+},
+{
+"op": "add_contact",
+"args": [
+8,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 8"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+0
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+16777216
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"😀",
+5
+],
+"out": {
+"error": "「😀」無法以 Big5（繁體） 表示"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+8
+],
+"out": {
+"error": "聯絡人已達對講機上限 8 筆"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+9
+],
+"out": {
+"sha": "c1f048546ff48cd1e697518d5e5c569b0fef2e3db20062f1bdea9bb4d3d7627d",
+"row": 8
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"DUP",
+46001
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#1 TG46001_CN"
+}
+},
+{
 "op": "rx_groups",
 "args": [],
 "out": [
@@ -15429,6 +15814,199 @@ false
 "out": [
 "1. MMDVM"
 ]
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"NEWTG",
+9990001
+],
+"out": {
+"sha": "d4c69577a49913bfe6b9394a71b4cbce9c8251ae93ba20a38e9fcb48573282d2",
+"row": 9
+}
+},
+{
+"op": "add_contact",
+"args": [
+5,
+"  Bob  ",
+9990002
+],
+"out": {
+"sha": "855428d36eb09966ef6a52508fa32bf884aab59912d13d1a3df83f06200d2372",
+"row": 9
+}
+},
+{
+"op": "add_contact",
+"args": [
+6,
+"中文名稱",
+16777215
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#8 ALL215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+7,
+"X",
+1
+],
+"out": {
+"sha": "d3d8e380aeccdaa6b1481b96a239ccd40a81aabd3042d9abe67eceb7476b6fe6",
+"row": 9
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"名稱超過十個位元組",
+9990003
+],
+"out": {
+"error": "名稱需 18 bytes，超過欄位上限 10 bytes（中文字每字 2 bytes）"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"　",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"A\nB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"AB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+3,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 3"
+}
+},
+{
+"op": "add_contact",
+"args": [
+8,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 8"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+0
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+16777216
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"😀",
+5
+],
+"out": {
+"error": "「😀」無法以 Big5（繁體） 表示"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+9
+],
+"out": {
+"error": "聯絡人已達對講機上限 9 筆"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+10
+],
+"out": {
+"sha": "562c81383b7683a287a9c4139ec75af8883efc4db4e9217e881b68475816561e",
+"row": 9
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"DUP",
+46001
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#1 TG46001_CN"
+}
 },
 {
 "op": "rx_groups",
@@ -22943,6 +23521,198 @@ false
 "out": [
 "1. TG46600"
 ]
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"NEWTG",
+9990001
+],
+"out": {
+"sha": "e5f81e816172b6fb54f21aa72166ee854d688ebbcb0859fcd6bec262714f10dc",
+"row": 360
+}
+},
+{
+"op": "add_contact",
+"args": [
+5,
+"  Bob  ",
+9990002
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#17 QA0ADN␍␊"
+}
+},
+{
+"op": "add_contact",
+"args": [
+6,
+"中文名稱",
+16777215
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#8 ALL215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+7,
+"X",
+1
+],
+"out": {
+"sha": "031a507715b93af9a95eb8e5e41e9003f9b119e32fa41c76e949124fcc27d33b",
+"row": 360
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"名稱超過十個位元組",
+9990003
+],
+"out": {
+"error": "名稱需 18 bytes，超過欄位上限 10 bytes（中文字每字 2 bytes）"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"　",
+5
+],
+"out": {
+"error": "請輸入名稱"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"A\nB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"AB",
+5
+],
+"out": {
+"error": "名稱不可包含換行等控制字元"
+}
+},
+{
+"op": "add_contact",
+"args": [
+3,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 3"
+}
+},
+{
+"op": "add_contact",
+"args": [
+8,
+"X",
+5
+],
+"out": {
+"error": "不支援的聯絡人類型 8"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+0
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+16777216
+],
+"out": {
+"error": "ID 必須介於 1 與 16,777,215"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"😀",
+5
+],
+"out": {
+"error": "「😀」無法以 Big5（繁體） 表示"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+360
+],
+"out": {
+"error": "聯絡人已達對講機上限 360 筆"
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"X",
+123,
+361
+],
+"out": {
+"sha": "5146522bfbfc300afa2e9d4d9db4ff04086fbdd75a2a3ebddc2239da5ee22856",
+"row": 360
+}
+},
+{
+"op": "add_contact",
+"args": [
+4,
+"DUP",
+46001
+],
+"out": {
+"error": "已有相同類型與 ID 的聯絡人：#1 TG46001_CN"
+}
 },
 {
 "op": "rx_groups",

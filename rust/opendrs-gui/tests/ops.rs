@@ -240,3 +240,75 @@ fn a_pdf_is_exported_with_the_installed_browser() {
     );
     assert!(app.status.starts_with("已匯出 PDF 到 "));
 }
+
+#[test]
+fn add_contact_asks_with_the_selected_type_then_appends() {
+    let scratch = Scratch::new("add-contact");
+    let mut app = app(&scratch);
+    let private = app
+        .project()
+        .contacts
+        .iter()
+        .position(|c| c.kind() == 5)
+        .expect("a private call in the fixture");
+    app.pages.tables.contacts.select_only(private);
+    app.add_contact();
+    match &app.dialog {
+        Some(Dialog::AddContact(dialog)) => {
+            assert_eq!(
+                (dialog.kind, dialog.name.as_str(), dialog.call_id.as_str()),
+                (5, "", "")
+            );
+        }
+        other => panic!("expected the add-contact dialog, got {other:?}"),
+    }
+    app.dialog = None;
+    // the same type and ID as an existing contact: refused, nothing recorded
+    let first = app.project().contacts[0];
+    let refused = app
+        .add_contact_values(first.kind(), "DUP", first.call_id())
+        .unwrap_err();
+    assert!(
+        refused.starts_with("已有相同類型與 ID 的聯絡人：#1 "),
+        "{refused}"
+    );
+    assert!(!app.doc.can_undo());
+    // hidden by the type filter: the filter is cleared and the new contact selected
+    app.pages.tables.contacts.filter.kind = Some(5);
+    let row = app
+        .add_contact_values(4, " NEWTG ", 9_990_123)
+        .expect("added");
+    assert_eq!(row, 359);
+    assert_eq!(app.project().contacts[row].index(), 360);
+    assert_eq!(app.doc.undo_text(), "復原 新增聯絡人 NEWTG");
+    assert_eq!(app.tab, Tab::Contacts);
+    assert_eq!(app.pages.tables.contacts.single_selection(), Some(359));
+    assert_eq!(app.pages.tables.contacts.filter.kind, None);
+}
+
+#[test]
+fn add_contact_stops_at_the_radios_limit() {
+    let scratch = Scratch::new("add-contact-full");
+    let mut app = app(&scratch);
+    let mut project = app.project().clone();
+    let mut call_id = 9_000_000;
+    while project.contacts.len() < opendrs_core::codeplug::MAX_CONTACTS {
+        call_id += 1;
+        project = opendrs_core::contact_edit::add_contact(
+            &project,
+            4,
+            "X",
+            call_id,
+            app.codec,
+            opendrs_core::codeplug::MAX_CONTACTS,
+        )
+        .expect("room left")
+        .0;
+    }
+    app.commit(project, "fill");
+    app.add_contact();
+    assert_eq!(
+        message(&app),
+        ("新增聯絡人".into(), "聯絡人已達對講機上限 1000 筆。".into())
+    );
+}

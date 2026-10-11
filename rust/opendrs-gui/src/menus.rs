@@ -5,9 +5,11 @@ use std::path::{Path, PathBuf};
 
 use eframe::egui::{self, KeyboardShortcut, ViewportCommand};
 
+use crate::actions::{self, Command};
 use crate::app::{
     DELETE, FIND, MOVE_DOWN, MOVE_UP, OPEN, OpenDrsApp, PRINT, REDO, SAVE, SAVE_AS, ThemeMode, UNDO,
 };
+use crate::dialogs::update;
 use crate::icons::{Icon, tool_button};
 use crate::radio;
 
@@ -48,9 +50,8 @@ impl OpenDrsApp {
             ui.menu_button("檔案", |ui| self.file_menu(ui));
             ui.menu_button("編輯", |ui| self.edit_menu(ui));
             ui.menu_button("聯絡人", |ui| {
-                if ui.button("從 RadioID 匯入聯絡人…").clicked() {
-                    self.import_from_radioid();
-                }
+                self.command(ui, &actions::ADD_CONTACT, None);
+                self.command(ui, &actions::IMPORT_RADIOID, None);
                 if ui.button("從 CSV 匯入聯絡人…").clicked() {
                     self.import_contacts_csv();
                 }
@@ -58,89 +59,20 @@ impl OpenDrsApp {
                     self.export_contacts_csv();
                 }
                 ui.separator();
-                if Self::item(
-                    ui,
-                    "上移聯絡人",
-                    Some(&MOVE_UP),
-                    "與上一筆交換位置；頻道發話對象與接收群組跟著調整",
-                ) {
-                    self.shift_contact(-1);
-                }
-                if Self::item(
-                    ui,
-                    "下移聯絡人",
-                    Some(&MOVE_DOWN),
-                    "與下一筆交換位置；頻道發話對象與接收群組跟著調整",
-                ) {
-                    self.shift_contact(1);
-                }
-                if Self::item(
-                    ui,
-                    "刪除選取的聯絡人",
-                    Some(&DELETE),
-                    "刪除選取的聯絡人；編號往前遞補，頻道與接收群組自動調整",
-                ) {
-                    self.delete_contacts();
-                }
+                self.command(ui, &actions::CONTACT_UP, Some(&MOVE_UP));
+                self.command(ui, &actions::CONTACT_DOWN, Some(&MOVE_DOWN));
+                self.command(ui, &actions::DELETE_CONTACTS, Some(&DELETE));
             });
             ui.menu_button("頻道／分區", |ui| {
-                if Self::item(
-                    ui,
-                    "新增頻道（複製選取的頻道）",
-                    None,
-                    "複製目前選取的頻道，加在同一分區的最後面；掃描清單與其他頻道的編號不受影響",
-                ) {
-                    self.add_channel();
-                }
-                if Self::item(
-                    ui,
-                    "批次新增頻道…",
-                    None,
-                    "以選取的頻道為範本，一次新增多台（頻率依間隔遞增、名稱依序編號）",
-                ) {
-                    self.batch_add_channels();
-                }
-                if Self::item(
-                    ui,
-                    "刪除頻道",
-                    Some(&DELETE),
-                    "刪除選取的頻道；同分區之後的頻道編號與掃描清單會自動調整",
-                ) {
-                    self.delete_channel();
-                }
-                if Self::item(
-                    ui,
-                    "上移頻道",
-                    Some(&MOVE_UP),
-                    "與同分區的上一台交換位置；掃描清單等引用跟著調整",
-                ) {
-                    self.shift_channel(-1);
-                }
-                if Self::item(
-                    ui,
-                    "下移頻道",
-                    Some(&MOVE_DOWN),
-                    "與同分區的下一台交換位置；掃描清單等引用跟著調整",
-                ) {
-                    self.shift_channel(1);
-                }
+                self.command(ui, &actions::ADD_CHANNEL, None);
+                self.command(ui, &actions::BATCH_ADD_CHANNELS, None);
+                self.command(ui, &actions::DELETE_CHANNEL, Some(&DELETE));
                 ui.separator();
-                if Self::item(
-                    ui,
-                    "新增分區…",
-                    None,
-                    "在最後新增一個分區，第一台頻道複製目前選取的頻道",
-                ) {
-                    self.add_zone();
-                }
-                if Self::item(
-                    ui,
-                    "刪除分區",
-                    None,
-                    "刪除選取的分區與其中的頻道；之後的分區與掃描清單自動調整",
-                ) {
-                    self.delete_zone();
-                }
+                self.command(ui, &actions::CHANNEL_UP, Some(&MOVE_UP));
+                self.command(ui, &actions::CHANNEL_DOWN, Some(&MOVE_DOWN));
+                ui.separator();
+                self.command(ui, &actions::ADD_ZONE, None);
+                self.command(ui, &actions::DELETE_ZONE, None);
                 ui.separator();
                 if Self::item(
                     ui,
@@ -206,9 +138,13 @@ impl OpenDrsApp {
                 ) {
                     self.compare_dialog();
                 }
+                ui.separator();
+                if Self::item(ui, &self.update_menu_text(), None, update::MENU_TIP) {
+                    self.check_for_updates();
+                }
                 if ui
                     .button("關於本軟體…")
-                    .on_hover_text("版本、作者與執行環境")
+                    .on_hover_text("版本、作者、網站與執行環境")
                     .clicked()
                 {
                     self.about();
@@ -296,6 +232,24 @@ impl OpenDrsApp {
         }
     }
 
+    /// A shared command's menu item (with its tooltip unless that only repeats the text); runs
+    /// the command when clicked.
+    fn command(
+        &mut self,
+        ui: &mut egui::Ui,
+        command: &Command,
+        shortcut: Option<&KeyboardShortcut>,
+    ) {
+        let tip = if command.tip == command.text {
+            ""
+        } else {
+            command.tip
+        };
+        if Self::item(ui, command.text, shortcut, tip) {
+            (command.run)(self);
+        }
+    }
+
     pub(crate) fn toolbar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             if tool_button(ui, Icon::Open, "開啟", true).clicked() {
@@ -319,11 +273,12 @@ impl OpenDrsApp {
             ui.separator();
             self.radio_toolbar(ui);
             ui.separator();
-            if tool_button(ui, Icon::Users, "RadioID 匯入", true)
-                .on_hover_text("從 RadioID 匯入聯絡人…")
+            let radioid = &actions::IMPORT_RADIOID;
+            if tool_button(ui, radioid.icon, radioid.short, true)
+                .on_hover_text(radioid.tip)
                 .clicked()
             {
-                self.import_from_radioid();
+                (radioid.run)(self);
             }
             if tool_button(ui, Icon::Clean, "清除換行", true)
                 .on_hover_text("移除舊版寫頻軟體寫進名稱的換行等控制字元")

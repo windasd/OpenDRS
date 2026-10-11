@@ -11,6 +11,7 @@ use std::ops::Range;
 use opendrs_core::alarm_enc::{self, AlarmEdit};
 use opendrs_core::channels_csv;
 use opendrs_core::cleanup;
+use opendrs_core::codeplug::MAX_CONTACTS;
 use opendrs_core::contact_edit;
 use opendrs_core::diff;
 use opendrs_core::f136::{self, Project};
@@ -159,6 +160,22 @@ fn op_contacts(p: &Project, op: &str, a: &[Value]) -> Option<Value> {
             let delta = i32::try_from(int(a, 1)).expect("delta");
             guarded(
                 contact_edit::shift_contact(p, idx(a, 0), delta),
+                |(q, row)| json!({"sha": psha(&q), "row": row}),
+            )
+        }
+        "add_contact" => {
+            let capacity = a.get(3).map_or(MAX_CONTACTS, |v| {
+                usize::try_from(v.as_u64().expect("capacity")).expect("capacity")
+            });
+            guarded(
+                contact_edit::add_contact(
+                    p,
+                    u8::try_from(int(a, 0)).expect("kind"),
+                    text(a, 1),
+                    u32::try_from(int(a, 2)).expect("call id"),
+                    CODEC,
+                    capacity,
+                ),
                 |(q, row)| json!({"sha": psha(&q), "row": row}),
             )
         }

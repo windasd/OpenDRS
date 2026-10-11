@@ -2,6 +2,7 @@
 //! GUI in `src/opendrs/gui`. All editing logic lives in `opendrs-core`, `opendrs-firmware` and
 //! `opendrs-contacts`; this crate only draws it.
 
+pub mod actions;
 pub mod app;
 pub mod dialogs;
 pub mod document;
@@ -56,6 +57,12 @@ pub fn run(open: Option<PathBuf>) -> eframe::Result {
     eframe::run_native(
         "OpenDRS",
         options,
-        Box::new(move |cc| Ok(Box::new(app::OpenDrsApp::new(cc, open)))),
+        Box::new(move |cc| {
+            let mut app = app::OpenDrsApp::new(cc, open);
+            // Only here, never in the constructors: tests must not reach the network.
+            app.start_update_check(chrono::Utc::now());
+            app.clean_stale_updates();
+            Ok(Box::new(app))
+        }),
     )
 }

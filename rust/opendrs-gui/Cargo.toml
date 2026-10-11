@@ -26,6 +26,7 @@ egui_extras = { version = "0.36.2", features = ["svg"] }
 opendrs-contacts = { version = "0.1.0", path = "../opendrs-contacts" }
 opendrs-core = { version = "0.1.0", path = "../opendrs-core", default-features = false }
 opendrs-firmware = { version = "0.1.0", path = "../opendrs-firmware" }
+opendrs-update = { version = "0.1.0", path = "../opendrs-update" }
 rfd = "0.17.2"
 # The self-test report.
 serde_json = "1.0.151"

@@ -9,8 +9,10 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::codeplug::{CONTACT_SIZE, CONTACTS_OFFSET, image_length_for, with_synced_image};
 use crate::f136::Project;
+use crate::pystr;
+use crate::records::{Contact, NAME_SIZE};
 use crate::rxgroup::remap_members;
-use crate::textcodec::NameCodec;
+use crate::textcodec::{NameCodec, encode_name};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{0}")]
@@ -186,4 +188,73 @@ pub fn shift_contact(
         }),
         target,
     ))
+}
+
+/// Append one contact after the last; returns `(project, new row)`.
+///
+/// Nothing else is renumbered, so every reference stays valid. A contact with the same type and
+/// ID is refused rather than renamed (an import overwrites its name instead). `capacity` is the
+/// radio's limit ([`crate::codeplug::MAX_CONTACTS`]).
+pub fn add_contact(
+    project: &Project,
+    kind: u8,
+    name: &str,
+    call_id: u32,
+    codec: NameCodec,
+    capacity: usize,
+) -> Result<(Project, usize), ContactEditError> {
+    if !(4..=7).contains(&kind) {
+        return Err(error(format!("不支援的聯絡人類型 {kind}")));
+    }
+    if !(1..=Contact::MAX_ID).contains(&call_id) {
+        return Err(error(format!(
+            "ID 必須介於 1 與 {}",
+            pystr::thousands(u64::from(Contact::MAX_ID))
+        )));
+    }
+    if project.contacts.len() >= capacity {
+        return Err(error(format!("聯絡人已達對講機上限 {capacity} 筆")));
+    }
+    let text = pystr::strip(name);
+    if text.is_empty() {
+        return Err(error("請輸入名稱"));
+    }
+    if text.chars().any(|ch| (ch as u32) < 0x20 || ch == '\x7f') {
+        return Err(error("名稱不可包含換行等控制字元"));
+    }
+    if let Some(same) = project
+        .contacts
+        .iter()
+        .find(|c| c.kind() == kind && c.call_id() == call_id)
+    {
+        return Err(error(format!(
+            "已有相同類型與 ID 的聯絡人：#{} {}",
+            same.index(),
+            same.name(codec)
+        )));
+    }
+    let field = encode_name(text, NAME_SIZE, codec).map_err(|e| error(e.to_string()))?;
+    let number = project
+        .contacts
+        .iter()
+        .map(Contact::index)
+        .max()
+        .unwrap_or(0)
+        .checked_add(1)
+        .ok_or_else(|| error("聯絡人編號已用完"))?;
+    let contact =
+        Contact::build(number, kind, &field, call_id).map_err(|e| error(e.to_string()))?;
+    let mut contacts = project.contacts.clone();
+    contacts.push(contact);
+    let mut section_order = project.section_order.clone();
+    if !section_order.iter().any(|s| s == "Contacts") {
+        section_order.insert(0, "Contacts".to_owned());
+    }
+    let row = contacts.len() - 1;
+    let updated = with_synced_image(&Project {
+        contacts,
+        section_order,
+        ..project.clone()
+    });
+    Ok((updated, row))
 }

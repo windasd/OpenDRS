@@ -60,7 +60,9 @@ fn self_test_writes_a_report_that_matches_the_exit_code() {
         json.get("running").is_none(),
         "the final report is complete"
     );
-    for name in ["icon", "codecs", "radio", "settings", "tls", "window"] {
+    for name in [
+        "icon", "codecs", "radio", "settings", "tls", "update", "window",
+    ] {
         let line = checks[name].as_str().unwrap_or_default();
         assert!(line.starts_with("ok: "), "{name}: {line}");
     }

@@ -2,7 +2,9 @@
 
 use eframe::egui;
 
+use crate::actions::page_actions;
 use crate::app::OpenDrsApp;
+use crate::icons::tool_button;
 use crate::table::model::{self, Table};
 use crate::table::view::{self, TableAction, TableState};
 
@@ -24,7 +26,33 @@ impl RecordTables {
     }
 }
 
+/// The page's commands as buttons above the table (the menu items, with their short text).
+fn actions_bar(app: &mut OpenDrsApp, ui: &mut egui::Ui, table: Table) {
+    let mut chosen = None;
+    ui.horizontal(|ui| {
+        for action in page_actions(table) {
+            match action {
+                None => {
+                    ui.separator();
+                }
+                Some(command) => {
+                    if tool_button(ui, command.icon, command.short, true)
+                        .on_hover_text(command.tip)
+                        .clicked()
+                    {
+                        chosen = Some(command.run);
+                    }
+                }
+            }
+        }
+    });
+    if let Some(run) = chosen {
+        run(app);
+    }
+}
+
 pub fn show(app: &mut OpenDrsApp, ui: &mut egui::Ui, table: Table) {
+    actions_bar(app, ui, table);
     let revision = app.doc.revision();
     let codec = app.codec;
     let state = app.pages.tables.get_mut(table);

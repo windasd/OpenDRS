@@ -1,8 +1,7 @@
 # OpenDRS — Rust 重寫（實驗分支 `rust-rewrite`）
 
 把 Python 版逐模組移植到 Rust，目標是 **Windows、macOS、Linux 都能用**。這個分支只放 Rust 版；
-Python 版在 `main` 分支，並以它的 commit `6f28c95` 當「標準答案」（`main` 在 `8aa7c0b` 之後新增的頁面按鈕、新增聯絡人、
-檢查更新及其設定欄位尚未移植，比對答案也不涵蓋它們）：
+Python 版在 `main` 分支，並以它的 commit `6f28c95` 當「標準答案」：
 Rust 版的每個結果都和它比對，必須逐位元組相同（見「怎麼確認和 Python 版一樣」）。測試資料在 `rust/fixtures/`。
 
 ## 現況：三個階段都已移植（視窗程式、指令列工具、所有非 GUI 模組）
@@ -12,11 +11,14 @@ Rust 版的每個結果都和它比對，必須逐位元組相同（見「怎麼
 | `opendrs-core` | 名稱編碼 `textcodec`、記錄 `records`、裝置資訊 `device`、`.F136` 讀寫 `f136`、傳輸資料流 `codeplug`、寫頻協定與序列埠 `radio_link`、模擬對講機 `radio_sim`；頻道欄位 `channel_fields`、對講機設定 `radio_settings`、分區／頻道增刪移動 `layout`、聯絡人刪除與排序 `contact_edit`、接收群組 `rxgroup`、掃描列表 `scanlist`、緊急系統／加密／GPS `alarm_enc`、快捷短信 `quickmsg`、名稱清理 `cleanup`、專案差異 `diff`、復原／重做 `history`、頻道 CSV `channels_csv`、設定檔 `settings`、備份清單 `backups`、資料夾位置 `paths`；以及重現 Python 行為的 `pystr`（`str` 方法、`int()`、`Decimal`、`repr`，Unicode 表由 Python 產生）與 `pycsv`（`csv` 模組） |
 | `opendrs-firmware` | IAP 韌體升級 `iap`／`iap_sim`、錄音讀取 `recording`／`recording_sim`（含 AMBE+2 解碼呼叫與 WAV）、韌體檢查 `firmware_check`、錄音讀取修補 `fwpatch`、支援機型 `hardware` |
 | `opendrs-contacts` | RadioID.net 資料庫下載／快取／搜尋 `radioid`、匯入成聯絡人 `contact_import`、聯絡人 CSV `contacts_csv` |
+| `opendrs-update` | 檢查更新 `update`：查詢 GitHub 最新發佈、選出本平台的 Rust 版壓縮檔、核對 SHA-256、解壓、替換程式檔的 PowerShell 腳本（見「檢查更新」） |
 | `opendrs-cli` | 指令列工具 `opendrs-rs`（見下） |
 | `opendrs-gui` | 視窗程式 `opendrs`（egui／eframe）：主視窗、九個頁面、讀寫頻、韌體升級、錄音、RadioID 匯入、備份管理、批次新增、比較專案、列印（`gui/` 全部；見 `opendrs-gui/PORTING.md`） |
 | `xtask` | 打包工具 `cargo xtask dist`：release 建置、打包後自我檢查、各平台壓縮檔（見「打包與自我檢查」） |
 
-尚未移植：軟體更新檢查。
+`main` 在 `8aa7c0b` 之後新增的功能也已移植：頻道、分區、聯絡人表格上方的指令按鈕（與選單共用 `opendrs-gui/src/actions.rs`）、
+新增聯絡人（`contact_edit::add_contact`，17 種情境與 Python 版逐位元組比對）、掃描清單與接收群組的「新增清單…」、
+檢查更新與關於視窗的網站。
 
 指令列工具 `opendrs-rs`：
 
@@ -114,6 +116,7 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
 | `gpu` | 以 eframe 相同設定取得 wgpu 繪圖介面並建立裝置（沒有 GPU 時為 WARP、lavapipe 等軟體繪圖；不開真正的視窗） |
 | `serial` | 列出序列埠（Linux 需 libudev） |
 | `tls` | 建立 RadioID 下載用的 rustls（ring）＋作業系統憑證庫設定 |
+| `update` | 檢查更新的版本比較與替換程式檔的腳本（不連網路） |
 | `pdf` | 以已安裝的 Edge／Chrome 把報告印成 PDF；沒有瀏覽器時為 skip（不算失敗） |
 
 ## 怎麼確認和 Python 版一樣
@@ -158,6 +161,20 @@ cargo xtask licenses --target x86_64-pc-windows-msvc --target aarch64-apple-darw
 - 備份檔名接受全形數字、結尾換行；現在只接受 `save_backup` 寫出的格式。
 - 檔案開頭是 UTF-16 BOM、內容卻不是合法 UTF-16 時匯入 CSV 會崩潰（Rust 版則默默以替代字元解碼）；
   現在兩邊都改試其他編碼。
+
+## 檢查更新（工具 › 檢查更新…）
+
+對應 Python 版的 `update.py`／`update_dialog.py`：查詢 GitHub 上最新發佈的版本並顯示更新說明，啟動時每天最多
+自動檢查一次（可在對話框取消，與 Python 版共用 `settings.json` 的 `check_updates`、`last_update_check`）。
+
+- **只認 Rust 版的檔案**：發佈必須附有本平台的 `OpenDRS-<版本>-<平台>.zip`（Linux 為 `.tar.gz`，平台名稱與
+  `cargo xtask dist` 相同，例如 `windows-x64`）；Python 版的 `OpenDRS-<版本>-win64.zip` 永遠不會被選上。沒有本平台
+  檔案的發佈只顯示說明並請使用者到發佈頁面查看，啟動時的自動檢查也不提示。
+- **Windows 版可直接「下載並安裝」**：只限從解壓縮的發佈資料夾執行時（旁邊有 `README.txt` 與 `licenses/`）。
+  下載後以 GitHub 回報的 SHA-256 與發佈附的 `.sha256` 兩者核對，解壓前逐一檢查路徑（不允許跳出 `OpenDRS/`、符號連結、
+  控制字元，大小有上限），再關閉程式（有未儲存的修改會先詢問，取消就不安裝），由 PowerShell 腳本替換
+  `OpenDRS.exe`、`opendrs-rs.exe`、`licenses`、`README.txt` 並重新開啟；失敗時還原，紀錄在 `<資料夾>/logs/update.log`。
+- macOS、Linux 與開發版（`cargo run`）只提示有新版本，請到發佈頁面下載。
 
 ## 已知差異
 

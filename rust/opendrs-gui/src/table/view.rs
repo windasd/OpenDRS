@@ -78,6 +78,18 @@ impl TableState {
         &self.rows
     }
 
+    /// Whether record `row` passes the search and filters (is shown in the table).
+    pub fn shows(
+        &mut self,
+        project: &Project,
+        revision: u64,
+        table: Table,
+        codec: NameCodec,
+        row: usize,
+    ) -> bool {
+        self.rows(project, revision, table, codec).contains(&row)
+    }
+
     /// Select one row and scroll to it (after add / delete / move).
     pub fn select_only(&mut self, row: usize) {
         self.selected = BTreeSet::from([row]);

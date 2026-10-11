@@ -325,3 +325,59 @@ fn screenshots() {
     group_page::open_editor(harness.state_mut(), 1);
     save(&mut harness, "group-editor");
 }
+
+#[test]
+fn table_buttons_add_a_contact_and_a_zone() {
+    let dir = Scratch::new("buttons");
+    let mut harness = harness(&dir.0);
+    harness.state_mut().tab = Tab::Contacts;
+    harness.run();
+    // the toolbar's button and the contact page's, as in the Python version
+    assert_eq!(harness.query_all_by_label("RadioID 匯入").count(), 2);
+    harness.get_by_label("新增").click();
+    harness.run();
+    assert!(matches!(
+        harness.state().dialog,
+        Some(Dialog::AddContact(_))
+    ));
+    harness.get_by_label("確定").click(); // no ID typed yet
+    harness.run();
+    harness.get_by_label("請輸入 ID");
+    if let Some(Dialog::AddContact(dialog)) = harness.state_mut().dialog.as_mut() {
+        dialog.name = "UI_TG".into();
+        dialog.call_id = "9990777".into();
+    }
+    harness.run();
+    harness.get_by_label("確定").click();
+    harness.run();
+    let app = harness.state();
+    assert!(app.dialog.is_none());
+    assert_eq!(app.doc.undo_text(), "復原 新增聯絡人 UI_TG");
+    assert_eq!(app.pages.tables.contacts.single_selection(), Some(359));
+    harness.state_mut().tab = Tab::Zones;
+    harness.run();
+    harness.get_by_label("新增").click();
+    harness.run();
+    assert!(matches!(
+        harness.state().dialog,
+        Some(Dialog::AddZone { .. })
+    ));
+}
+
+#[test]
+fn add_list_edits_the_first_unused_scan_list() {
+    let dir = Scratch::new("add-list");
+    let mut harness = harness(&dir.0);
+    harness.state_mut().tab = Tab::ScanLists;
+    harness.run();
+    let first_unused = {
+        let app = harness.state();
+        opendrs_gui::pages::slots::first_unused(&scan_page::rows(app.project(), app.codec))
+            .expect("an unused scan list")
+    };
+    harness.get_by_label("新增清單…").click();
+    harness.run();
+    let app = harness.state();
+    assert!(app.pages.scan.editor.is_some());
+    assert_eq!(app.pages.scan.selected, Some(first_unused));
+}

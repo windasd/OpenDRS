@@ -242,8 +242,14 @@ pub fn show(app: &mut OpenDrsApp, ui: &mut egui::Ui) {
             slots::slot_table(ui, "scan-lists", NOTE, &rows, &mut app.pages.scan.selected)
         })
         .inner;
-    if let Some(number) = open {
-        open_editor(app, number);
+    match open {
+        Some(slots::SlotRequest::Edit(number)) => {
+            open_editor(app, number);
+        }
+        Some(slots::SlotRequest::AllInUse(total)) => {
+            app.warn(slots::ADD_TITLE, slots::all_in_use_text(total));
+        }
+        None => {}
     }
     editor(app, ui);
 }

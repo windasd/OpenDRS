@@ -36,8 +36,9 @@ use crate::{fonts, print, report};
 /// Where the report goes when no path is given.
 pub const DEFAULT_REPORT: &str = "opendrs_selftest.json";
 /// Every check, in the order they run (`cargo xtask dist` expects exactly these).
-pub const CHECK_NAMES: [&str; 10] = [
-    "fonts", "icon", "codecs", "settings", "radio", "window", "gpu", "serial", "tls", "pdf",
+pub const CHECK_NAMES: [&str; 11] = [
+    "fonts", "icon", "codecs", "settings", "radio", "window", "gpu", "serial", "tls", "update",
+    "pdf",
 ];
 const CODEC: NameCodec = NameCodec::Big5;
 const GPU_TIMEOUT: Duration = Duration::from_secs(30);
@@ -146,6 +147,7 @@ pub fn run_checks_with(
         ("gpu", Box::new(check_gpu)),
         ("serial", Box::new(check_serial)),
         ("tls", Box::new(check_tls)),
+        ("update", Box::new(check_update)),
         ("pdf", Box::new(|| check_pdf(scratch, &sample))),
     ];
     let mut results = Vec::with_capacity(checks.len());
@@ -355,6 +357,19 @@ fn check_serial() -> Result<Pass, String> {
 
 fn check_tls() -> Result<Pass, String> {
     opendrs_contacts::radioid::http::tls_ready().map(Pass::Ok)
+}
+
+/// The update check's pieces that need no network: version order and the updater script.
+fn check_update() -> Result<Pass, String> {
+    let newer = opendrs_update::parse_version("v0.2.0").map_err(|e| e.to_string())?;
+    let older = opendrs_update::parse_version("0.1.0").map_err(|e| e.to_string())?;
+    if newer <= older {
+        return Err("版本比較錯誤".into());
+    }
+    if !opendrs_update::updater_script().contains("Move-Item") {
+        return Err("更新腳本不完整".into());
+    }
+    Ok(Pass::Ok(opendrs_update::API_LATEST.into()))
 }
 
 /// The printed report through the browser 匯出 PDF uses.

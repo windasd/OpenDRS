@@ -10,6 +10,9 @@ use super::form::cell_label;
 pub const SLOT_COLUMNS: [&str; 4] = ["#", "名稱", "數量", "成員"];
 pub const UNUSED: &str = "（未使用）";
 pub const EDIT_BUTTON: &str = "編輯選取的清單…";
+pub const ADD_BUTTON: &str = "新增清單…";
+pub const ADD_TIP: &str = "編輯第一個未使用的清單";
+pub const ADD_TITLE: &str = "新增清單";
 pub const OK: &str = "確定";
 pub const CANCEL: &str = "取消";
 /// Members are joined with this in the 成員 column.
@@ -52,6 +55,25 @@ pub fn in_use(rows: &[SlotRow]) -> usize {
     rows.iter().filter(|r| r.in_use).count()
 }
 
+/// Number (1-based) of the first slot not in use.
+pub fn first_unused(rows: &[SlotRow]) -> Option<usize> {
+    rows.iter().find(|r| !r.in_use).map(|r| r.number)
+}
+
+/// 新增清單… when every slot is taken.
+pub fn all_in_use_text(total: usize) -> String {
+    format!("{total} 個清單都已使用；請選一個編輯或清空後再用。")
+}
+
+/// What the slot table asks the page to do this frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotRequest {
+    /// Open the editor for this slot (1-based).
+    Edit(usize),
+    /// 新增清單… with all `total` slots in use.
+    AllInUse(usize),
+}
+
 /// `已勾選 {n} / {limit} 個{unit}`, with `　⚠ 超過上限` past the limit.
 pub fn count_text(checked: usize, limit: usize, unit: &str) -> String {
     let over = if checked > limit {
@@ -69,19 +91,28 @@ pub fn matches(label: &str, filter: &str) -> bool {
     split(&filter).all(|term| label.contains(term))
 }
 
-/// The slot table with its note and 編輯選取的清單… button. Returns the slot number to edit
-/// (double-clicked row, or the button with a row selected).
+/// The slot table with its note and the 新增清單… and 編輯選取的清單… buttons. Returns the slot to
+/// edit (double-clicked row, the edit button with a row selected, or the first unused slot).
 pub fn slot_table(
     ui: &mut egui::Ui,
     id: &str,
     note: &str,
     rows: &[SlotRow],
     selected: &mut Option<usize>,
-) -> Option<usize> {
+) -> Option<SlotRequest> {
     let mut open = None;
     ui.with_layout(Layout::right_to_left(egui::Align::TOP), |ui| {
         if ui.button(EDIT_BUTTON).clicked() {
-            open = *selected;
+            open = selected.map(SlotRequest::Edit);
+        }
+        if ui.button(ADD_BUTTON).on_hover_text(ADD_TIP).clicked() {
+            open = Some(match first_unused(rows) {
+                Some(number) => {
+                    *selected = Some(number);
+                    SlotRequest::Edit(number)
+                }
+                None => SlotRequest::AllInUse(rows.len()),
+            });
         }
         ui.with_layout(Layout::left_to_right(egui::Align::TOP), |ui| {
             ui.add(egui::Label::new(note).wrap());
@@ -118,7 +149,7 @@ pub fn slot_table(
                 }
                 if response.double_clicked() {
                     *selected = Some(row.number);
-                    open = Some(row.number);
+                    open = Some(SlotRequest::Edit(row.number));
                 }
             });
         });
@@ -324,7 +355,18 @@ mod tests {
             ..row.clone()
         };
         assert_eq!(used.cells()[1], "x");
-        assert_eq!(in_use(&[row, used]), 1);
+        assert_eq!(in_use(&[row.clone(), used.clone()]), 1);
+        // 新增清單…: the first unused slot, or the message when all are taken
+        let first = SlotRow {
+            number: 1,
+            ..used.clone()
+        };
+        assert_eq!(first_unused(&[first.clone(), row]), Some(3));
+        assert_eq!(first_unused(&[first, used]), None);
+        assert_eq!(
+            all_in_use_text(32),
+            "32 個清單都已使用；請選一個編輯或清空後再用。"
+        );
     }
 
     #[test]

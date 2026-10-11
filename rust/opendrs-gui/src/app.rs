@@ -12,6 +12,8 @@ use opendrs_core::settings::{self, Settings};
 use opendrs_core::textcodec::{NameCodec, suggest_codec};
 
 use crate::dialogs::Windows;
+use crate::dialogs::add_contact::AddContactDialog;
+use crate::dialogs::update::Updates;
 use crate::document::Document;
 use crate::fonts::{self, FontFile};
 use crate::icons::{self, Icon};
@@ -41,6 +43,8 @@ pub enum Pending {
     Close,
     /// 讀取對講機 (the result replaces the project).
     ReadRadio,
+    /// Hand over to the updater, then close (`Updates::pending` holds the update).
+    InstallUpdate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,6 +85,8 @@ pub enum Dialog {
     AddZone {
         name: String,
     },
+    /// 新增聯絡人: type, name and ID of the new contact.
+    AddContact(AddContactDialog),
     /// 寫入對講機 / 校正對講機時鐘: 是 starts the transfer, provided the project is still the
     /// one the question described (`revision`).
     Radio {
@@ -135,7 +141,7 @@ impl ThemeMode {
 }
 
 pub struct OpenDrsApp {
-    settings: Settings,
+    pub(crate) settings: Settings,
     /// Settings, backups, recordings and the RadioID cache live here.
     data_dir: PathBuf,
     pub doc: Document,
@@ -143,6 +149,8 @@ pub struct OpenDrsApp {
     pub tab: Tab,
     pub pages: PageState,
     pub windows: Windows,
+    /// 檢查更新: the window, what the automatic check found, the accepted update.
+    pub updates: Updates,
     pub status: String,
     pub dialog: Option<Dialog>,
     /// The cable's port picker and the transfer running on it.
@@ -195,6 +203,7 @@ impl OpenDrsApp {
             tab: Tab::default(),
             pages: PageState::default(),
             windows: Windows::default(),
+            updates: Updates::default(),
             status: problem.unwrap_or_default(),
             dialog: None,
             radio,
@@ -295,7 +304,7 @@ impl OpenDrsApp {
         ThemeMode::from_setting(&self.settings.theme)
     }
 
-    fn save_settings(&mut self) {
+    pub(crate) fn save_settings(&mut self) {
         if let Err(e) = settings::save_settings(&self.settings, &self.data_dir) {
             self.status = format!("無法儲存設定：{e}");
         }
@@ -356,7 +365,7 @@ impl OpenDrsApp {
         }
     }
 
-    fn run_pending(&mut self, pending: Pending) {
+    pub(crate) fn run_pending(&mut self, pending: Pending) {
         match pending {
             Pending::Open(Some(path)) => {
                 self.open_path(&path);
@@ -369,6 +378,11 @@ impl OpenDrsApp {
             Pending::Close => self.close_confirmed = true,
             Pending::ReadRadio => {
                 self.start_radio(Mode::Read);
+            }
+            Pending::InstallUpdate => {
+                if self.install_pending_update() {
+                    self.close_confirmed = true;
+                }
             }
         }
     }
@@ -640,37 +654,8 @@ impl OpenDrsApp {
                 text,
                 revision,
             } => self.radio_question(ctx, mode, &text, revision),
-            Dialog::AddZone { mut name } => {
-                let response = egui::Modal::new(egui::Id::new("add-zone")).show(ctx, |ui| {
-                    ui.heading("新增分區");
-                    ui.label("分區名稱（新分區的第一台頻道會複製目前選取的頻道）：");
-                    let edit = ui.text_edit_singleline(&mut name);
-                    edit.request_focus();
-                    let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        if ui.button("確定").clicked() || enter {
-                            Some(true)
-                        } else if ui.button("取消").clicked() {
-                            Some(false)
-                        } else {
-                            None
-                        }
-                    })
-                    .inner
-                });
-                match response
-                    .inner
-                    .or_else(|| response.should_close().then_some(false))
-                {
-                    Some(true) => {
-                        self.dialog = None;
-                        self.add_zone_named(&name);
-                    }
-                    Some(false) => self.dialog = None,
-                    None => self.dialog = Some(Dialog::AddZone { name }),
-                }
-            }
+            Dialog::AddZone { name } => self.add_zone_dialog(ctx, name),
+            Dialog::AddContact(state) => self.add_contact_dialog(ctx, state),
         }
     }
 
@@ -700,13 +685,20 @@ impl OpenDrsApp {
                 self.dialog = None;
                 if self.save() {
                     self.run_pending(pending);
+                } else if pending == Pending::InstallUpdate {
+                    self.cancel_pending_update();
                 }
             }
             Some(Choice::Discard) => {
                 self.dialog = None;
                 self.run_pending(pending);
             }
-            Some(Choice::Cancel) => self.dialog = None,
+            Some(Choice::Cancel) => {
+                self.dialog = None;
+                if pending == Pending::InstallUpdate {
+                    self.cancel_pending_update();
+                }
+            }
             None => {}
         }
     }
@@ -744,6 +736,7 @@ impl OpenDrsApp {
     pub(crate) fn tick(&mut self, ctx: &egui::Context) {
         self.guard_close(ctx);
         self.poll_radio();
+        self.poll_updates();
     }
 
     /// The whole window (the self-test draws it without eframe).

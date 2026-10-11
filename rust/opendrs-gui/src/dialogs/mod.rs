@@ -1,11 +1,13 @@
 //! Dialog windows that keep their own state (batch add, project comparison, about); the simple
 //! questions and messages are `app::Dialog`.
 
+pub mod add_contact;
 pub mod backups;
 pub mod batch;
 pub mod firmware;
 pub mod radioid;
 pub mod recording;
+pub mod update;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -16,13 +18,15 @@ use opendrs_core::f136;
 use opendrs_core::layout::add_channels;
 use opendrs_firmware::hardware;
 
-use crate::app::OpenDrsApp;
+use crate::app::{Dialog, OpenDrsApp};
 use crate::fonts;
 use crate::table::model::Table;
 use batch::{BatchDialog, BatchOutcome};
 
 pub const APP_NAME: &str = "OpenDRS";
 pub const AUTHOR: &str = "windasd";
+/// The project's page (the workspace's `repository`): source, issues and releases.
+pub const WEBSITE: &str = env!("CARGO_PKG_REPOSITORY");
 pub const SUMMARY: &str = "Kydera DR-8500UV／HORA DH-98VU 對講機寫頻軟體：專案編輯、讀寫頻、韌體升級（IAP）、通話錄音讀取。";
 pub const NOTES: &str = "聯絡人匯入使用 RadioID.net 的公開資料；錄音解碼呼叫原廠附帶的 DVSI ambep2.exe（授權軟體，本程式不附帶也不重寫）。";
 
@@ -49,6 +53,7 @@ pub fn about_text(data_dir: &Path) -> String {
     [
         format!("{APP_NAME} {}", env!("CARGO_PKG_VERSION")),
         format!("作者：{AUTHOR}"),
+        format!("網站：{WEBSITE}"),
         format!("支援機型：{}", radio_text()),
         format!("執行環境：{}", environment()),
         format!("程式位置：{exe}"),
@@ -126,6 +131,8 @@ impl DiffDialog {
 #[derive(Default)]
 pub struct AboutDialog {
     copied: bool,
+    /// 檢查更新… was pressed.
+    check_updates: bool,
 }
 
 /// The open dialog windows.
@@ -206,6 +213,39 @@ impl OpenDrsApp {
         });
     }
 
+    /// 新增分區: ask for the new zone's name (its first channel copies the selected one).
+    pub(crate) fn add_zone_dialog(&mut self, ctx: &egui::Context, mut name: String) {
+        let response = egui::Modal::new(egui::Id::new("add-zone")).show(ctx, |ui| {
+            ui.heading("新增分區");
+            ui.label("分區名稱（新分區的第一台頻道會複製目前選取的頻道）：");
+            let edit = ui.text_edit_singleline(&mut name);
+            edit.request_focus();
+            let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if ui.button("確定").clicked() || enter {
+                    Some(true)
+                } else if ui.button("取消").clicked() {
+                    Some(false)
+                } else {
+                    None
+                }
+            })
+            .inner
+        });
+        match response
+            .inner
+            .or_else(|| response.should_close().then_some(false))
+        {
+            Some(true) => {
+                self.dialog = None;
+                self.add_zone_named(&name);
+            }
+            Some(false) => self.dialog = None,
+            None => self.dialog = Some(Dialog::AddZone { name }),
+        }
+    }
+
     pub fn about(&mut self) {
         self.windows.about = Some(AboutDialog::default());
     }
@@ -216,6 +256,7 @@ impl OpenDrsApp {
         backups::show(self, ctx);
         firmware::show(self, ctx);
         recording::show(self, ctx);
+        self.update_window(ctx);
         if let Some(mut batch) = self.windows.batch.take() {
             let bands = self.project().device().bands();
             match batch.show(ctx, bands.as_deref()) {
@@ -256,7 +297,9 @@ impl OpenDrsApp {
                 .collapsible(false)
                 .default_width(560.0)
                 .show(ctx, |ui| self.about_ui(ui, &mut about));
-            if open {
+            if about.check_updates {
+                self.check_for_updates(); // the about box closes, as in the Python version
+            } else if open {
                 self.windows.about = Some(about);
             }
         }
@@ -292,7 +335,16 @@ impl OpenDrsApp {
                 for (label, value) in [
                     ("版本", env!("CARGO_PKG_VERSION").to_string()),
                     ("作者", AUTHOR.to_string()),
-                    ("支援機型", radio_text()),
+                ] {
+                    ui.label(label);
+                    ui.add(egui::Label::new(value).wrap().selectable(true));
+                    ui.end_row();
+                }
+                ui.label("網站");
+                ui.hyperlink_to(WEBSITE, WEBSITE)
+                    .on_hover_text("原始碼、問題回報與新版本下載");
+                ui.end_row();
+                for (label, value) in [
                     ("執行環境", environment()),
                     ("中文字型", fonts::describe(self.fonts())),
                     ("資料夾", data_dir.display().to_string()),
@@ -319,6 +371,9 @@ impl OpenDrsApp {
                     self.status = format!("無法開啟資料夾：{e}");
                 }
             }
+            if ui.button(update::MENU_TEXT).clicked() {
+                about.check_updates = true;
+            }
         });
     }
 }
@@ -339,6 +394,8 @@ mod tests {
             String::from_utf8(report[3..].to_vec()).unwrap(),
             "舊：a（目前內容）　→　新：b\r\n\r\n■ 頻道\r\n  第 1 列"
         );
-        assert!(about_text(Path::new("D")).contains("\n資料夾：D"));
+        let about = about_text(Path::new("D"));
+        assert!(about.contains("\n資料夾：D"));
+        assert!(about.contains("\n網站：https://github.com/windasd/OpenDRS\n"));
     }
 }

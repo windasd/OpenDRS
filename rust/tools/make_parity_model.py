@@ -122,6 +122,7 @@ def op_contacts(p: f136.Project, op: str, args: list) -> object:
         "delete_contacts": lambda: deletion_out(*contact_edit.delete_contacts(p, args[0], CODEC)),
         "shift_contact": lambda: row_out(*contact_edit.shift_contact(p, *args)),
         "channels_calling": lambda: contact_edit.channels_calling(p, set(args[0]), CODEC),
+        "add_contact": lambda: row_out(*contact_edit.add_contact(p, args[0], args[1], args[2], CODEC, *args[3:])),
     }
     return guarded(actions[op])
 
@@ -244,6 +245,16 @@ def contact_cases(p: f136.Project) -> list[tuple[str, list]]:
               ("shift_contact", [1, -1]), ("shift_contact", [n, 1]), ("shift_contact", [0, 3])]
     first_contact = p.channels[0].tx_contact if p.channels else 0
     cases.append(("channels_calling", [[first_contact, 9999]]))
+    cases += [("add_contact", [4, "NEWTG", 9_990_001]), ("add_contact", [5, "  Bob  ", 9_990_002]),
+              ("add_contact", [6, "中文名稱", 16_777_215]), ("add_contact", [7, "X", 1]),
+              ("add_contact", [4, "名稱超過十個位元組", 9_990_003]), ("add_contact", [4, "", 5]),
+              ("add_contact", [4, "\u3000", 5]), ("add_contact", [4, "A\nB", 5]),
+              ("add_contact", [4, "A\x7fB", 5]), ("add_contact", [3, "X", 5]), ("add_contact", [8, "X", 5]),
+              ("add_contact", [4, "X", 0]), ("add_contact", [4, "X", 16_777_216]),
+              ("add_contact", [4, "\U0001F600", 5]), ("add_contact", [4, "X", 123, n]),
+              ("add_contact", [4, "X", 123, n + 1])]
+    if p.contacts:
+        cases.append(("add_contact", [p.contacts[0].kind, "DUP", p.contacts[0].call_id]))
     return cases
 
 

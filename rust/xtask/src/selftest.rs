@@ -14,8 +14,9 @@ const TIMEOUT: Duration = Duration::from_secs(180);
 
 /// The checks `opendrs-gui/src/selftest.rs` runs (`CHECK_NAMES` there); a report missing one, or
 /// with one more, comes from a different build.
-pub const EXPECTED: [&str; 10] = [
-    "fonts", "icon", "codecs", "settings", "radio", "window", "gpu", "serial", "tls", "pdf",
+pub const EXPECTED: [&str; 11] = [
+    "fonts", "icon", "codecs", "settings", "radio", "window", "gpu", "serial", "tls", "update",
+    "pdf",
 ];
 
 /// Why a self-test report does not vouch for this build, if it does not. `strict` (on CI, where

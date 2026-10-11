@@ -2825,10 +2825,24 @@ dependencies = [
  "opendrs-contacts",
  "opendrs-core",
  "opendrs-firmware",
+ "opendrs-update",
  "rfd",
  "serde_json",
  "sha2",
  "winresource",
+]
+
+[[package]]
+name = "opendrs-update"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "flate2",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "ureq",
+ "zip",
 ]
 
 [[package]]
