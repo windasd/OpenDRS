@@ -34,6 +34,32 @@ def test_version_matches_package_and_pyproject() -> None:
     assert f'version = "{__version__}"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
+def test_changelog_has_an_entry_for_this_version() -> None:
+    from opendrs import __version__
+
+    notes = build.changelog_section(__version__, (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
+    assert notes and not notes.startswith("## ")  # the release job publishes this as the Release text
+
+
+def test_changelog_section_picks_exactly_one_version() -> None:
+    text = ("# 更新紀錄\n\n說明\n\n## v0.2.0rc1（2026-10-10）\n\n- 預覽\n\n"
+            "## v0.2.0（2026-10-11）\n\n### 新功能\n\n- 甲\n- 乙\n\n## v0.1.0（2026-10-09）\n\n第一版\n")
+    assert build.changelog_section("0.2.0", text) == "### 新功能\n\n- 甲\n- 乙"
+    assert build.changelog_section("0.2.0rc1", text) == "- 預覽"
+    assert build.changelog_section("0.1.0", text) == "第一版"  # the last section runs to the end
+    assert build.changelog_section("0.2", text) == "" and build.changelog_section("0.3.0", text) == ""
+
+
+def test_release_notes_require_a_changelog_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text("# 更新紀錄\n\n## v9.9.9（2030-01-01）\n\n- 新東西\n", encoding="utf-8")
+    monkeypatch.setattr(build, "CHANGELOG", changelog)
+    monkeypatch.setattr(build, "RELEASE_NOTES", tmp_path / "release-notes.md")
+    assert build.write_release_notes("9.9.9").read_bytes() == "- 新東西\n".encode()
+    with pytest.raises(SystemExit, match="沒有 v9.9.8 的更新紀錄"):
+        build.write_release_notes("9.9.8")
+
+
 @pytest.mark.parametrize(("text", "fields"), [
     ("0.1.0", (0, 1, 0, 0)), ("1.2", (1, 2, 0, 0)), ("1.2.3rc1", (1, 2, 3, 0)), ("2.0.0.7", (2, 0, 0, 7)),
 ])

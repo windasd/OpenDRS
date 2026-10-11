@@ -9,7 +9,7 @@ Kydera DR-8500UV／HORA DH-98VU 對講機的寫頻軟體，取代原廠 `DRS_V8.
 對講機寫頻時一律回報機型 `DRS-8500`、型號 `DR8600`，所以本程式把它們視為同一機型；裝置資訊頁會在機型旁註明
 這些名稱。讀寫頻、IAP 韌體升級與錄音讀取都是在一台 HORA DH-98VU（BK4819 射頻晶片）上實機驗證。
 
-作者：windasd　版本：0.1.0　網站：https://github.com/windasd/OpenDRS（版本與執行環境見「工具 › 關於本軟體…」，可一鍵複製給問題回報使用）
+作者：windasd　版本：0.2.0　網站：https://github.com/windasd/OpenDRS（版本與執行環境見「工具 › 關於本軟體…」，可一鍵複製給問題回報使用）
 
 | | 舊版 | 本版 |
 |---|---|---|
@@ -62,15 +62,17 @@ spec 會排除 widgets 程式用不到的 Qt 部分（Quick/QML、虛擬鍵盤�
 - 推送到 `main` 與每個 Pull Request：安裝（版本固定於 `packaging/requirements-ci.txt`）→ 語法／未定義名稱檢查 →
   全部測試 → 打包與自我測試；
   zip 以 Artifact（`OpenDRS-windows`，保留 30 天）提供下載。需要原廠韌體或 `ambep2.exe` 的測試在 CI 上自動略過。
-- **發佈新版**：先把 `src/opendrs/__init__.py` 與 `pyproject.toml` 的版本改成新版本並推送，再推送同名標籤：
+- **發佈新版**：先把 `src/opendrs/__init__.py` 與 `pyproject.toml` 的版本改成新版本、在 `CHANGELOG.md` 寫好
+  `## v<版本>（日期）` 一節並推送，再推送同名標籤：
 
   ```
-  git tag v0.2.0
-  git push origin v0.2.0
+  git tag v0.3.0
+  git push origin v0.3.0
   ```
 
-  標籤與程式版本不符、或標籤指向的 commit 不在 `main` 上時不會發佈；通過後自動建立 GitHub Release 並附上 zip 與
-  `.sha256`（標籤以 `a1`、`b1`、`rc1` 結尾時標為預先發行版）。
+  標籤與程式版本不符、`CHANGELOG.md` 沒有這一版的紀錄、或標籤指向的 commit 不在 `main` 上時不會發佈；
+  通過後自動建立 GitHub Release，附上 zip 與 `.sha256`，說明文字就是 `CHANGELOG.md` 的那一節
+  （程式的「檢查更新」也顯示它；標籤以 `a1`、`b1`、`rc1` 結尾時標為預先發行版）。
 - 所有 Actions 都固定在 commit SHA，Python 套件固定在 `packaging/requirements-ci.txt`；`.github/dependabot.yml`
   每週檢查兩者的新版並開 PR，PR 經過 CI 測試與打包後再合併。發佈用的建置不使用 pip 快取。
 - 只有發佈 Release 的工作有寫入權限，而且它不執行任何建置工具，只上傳已建好的檔案。

@@ -6,6 +6,9 @@
    on the offscreen and on the real Windows platform plugin; fail unless every check passed;
 4. add the third-party licences, zip ``dist/OpenDRS`` to ``dist/OpenDRS-<version>-win64.zip`` (+ ``.sha256``).
 
+With ``--expect-tag`` the version's section of CHANGELOG.md must exist; it is written to
+``build/release-notes.md``, which the release job publishes as the GitHub Release text.
+
 Used unchanged by the GitHub Actions workflow, so a local build matches a release build.
 """
 
@@ -40,6 +43,27 @@ REQUIRED_FILES = (
     "PySide6/translations/qtbase_zh_TW.qm",
 )
 ZH_TW_UNICODE = "040404B0"  # zh-TW, UTF-16 string table
+CHANGELOG = ROOT / "CHANGELOG.md"
+RELEASE_NOTES = BUILD / "release-notes.md"
+
+
+def changelog_section(version: str, text: str) -> str:
+    """The body of the ``## v<version>（date）`` section of CHANGELOG.md (stripped), "" if absent."""
+    heading = re.compile(rf"^## v{re.escape(version)}(?![0-9A-Za-z.]).*$", re.MULTILINE)
+    match = heading.search(text)
+    if not match:
+        return ""
+    body = text[match.end():]
+    following = re.search(r"^## ", body, re.MULTILINE)
+    return (body[:following.start()] if following else body).strip()
+
+
+def write_release_notes(version: str) -> Path:
+    notes = changelog_section(version, CHANGELOG.read_text(encoding="utf-8"))
+    if not notes:
+        raise SystemExit(f"CHANGELOG.md 沒有 v{version} 的更新紀錄（標題要寫成「## v{version}（日期）」）")
+    RELEASE_NOTES.write_bytes((notes + "\n").encode("utf-8"))
+    return RELEASE_NOTES
 
 
 def read_version() -> str:
@@ -196,6 +220,8 @@ def main() -> int:
         raise SystemExit(f"標籤 {args.expect_tag} 與程式版本 {version} 不符（請先修改 src/opendrs/__init__.py "
                          "與 pyproject.toml 的版本）")
     BUILD.mkdir(exist_ok=True)
+    if args.expect_tag:  # a release: its CHANGELOG entry is the release text (checked before the long build)
+        print(f"release notes: {write_release_notes(version)}")
     for old in DIST.glob(f"{NAME}-*-win64.zip*"):
         old.unlink()
     render_icon(BUILD / "opendrs.ico")

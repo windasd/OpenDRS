@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opendrs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Codeplug editor for DRS/DR-8500 series .F136 project files"
 authors = [{ name = "windasd" }]
 requires-python = ">=3.11"
