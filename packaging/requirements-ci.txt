@@ -7,7 +7,7 @@ PySide6_Addons==6.11.2
 shiboken6==6.11.2
 pyserial==3.5
 pyinstaller==6.22.3
-pyinstaller-hooks-contrib==2026.8
+pyinstaller-hooks-contrib==2026.9
 altgraph==0.17.5
 pefile==2024.8.26
 pywin32-ctypes==0.2.3
