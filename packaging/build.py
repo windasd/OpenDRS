@@ -182,8 +182,11 @@ def self_test(exe: Path, version: str, platform: str) -> dict:
 
 
 def add_licenses(folder: Path) -> None:
-    """Licence texts for everything bundled (see packaging/licenses/THIRD_PARTY_NOTICES.md)."""
+    """OpenDRS's own licence plus the texts for everything bundled (see THIRD_PARTY_NOTICES.md).
+
+    Everything goes into ``licenses\\``, which the in-app updater already replaces as a whole."""
     folder.mkdir(exist_ok=True)
+    shutil.copy2(ROOT / "LICENSE", folder / "OpenDRS-LICENSE.txt")
     for src in (ROOT / "packaging" / "licenses").iterdir():
         shutil.copy2(src, folder / src.name)
     shutil.copy2(Path(sys.base_prefix) / "LICENSE.txt", folder / "Python-LICENSE.txt")

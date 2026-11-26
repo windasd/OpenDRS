@@ -363,6 +363,13 @@ spec 會排除 widgets 程式用不到的 Qt 部分（Quick/QML、虛擬鍵盤�
    數量上限尚未確認。對講機若另外記住「目前所在頻道」，刪除後可能停在相鄰頻道。
 5. 只編輯已確認意義的欄位；其他頻道屬性、掃描列表、設定區內容以原始位元組顯示或保留，未提供編輯。
 
+## 授權
+
+OpenDRS 以 [MIT 授權](LICENSE)釋出（Copyright (c) 2026 windasd）：可自由使用、修改、散布與商用，保留版權與授權聲明即可。
+本軟體「依現狀」提供，不負任何擔保；寫頻與韌體升級都可能讓對講機暫時無法使用，請先備份，風險自負。
+打包版隨附的第三方元件（Qt、PySide6、Python、pySerial、PyInstaller）各有授權，見
+[`packaging/licenses/THIRD_PARTY_NOTICES.md`](packaging/licenses/THIRD_PARTY_NOTICES.md)；原廠工具與韌體不包含在內。
+
 ## 結構
 
 ```

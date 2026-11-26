@@ -2,4 +2,5 @@
 
 __version__ = "0.2.0"
 __author__ = "windasd"
+__license__ = "MIT"
 __url__ = "https://github.com/windasd/OpenDRS"

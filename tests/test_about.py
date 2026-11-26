@@ -12,8 +12,10 @@ pytest.importorskip("PySide6.QtCore")
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from opendrs import __author__, __version__  # noqa: E402
+from opendrs import __author__, __license__, __version__  # noqa: E402
 from opendrs.gui.about_dialog import AboutDialog, about_text  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -23,19 +25,29 @@ def app() -> QApplication:
 
 def test_package_metadata() -> None:
     assert __author__ == "windasd"
-    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert f'version = "{__version__}"' in pyproject and 'name = "windasd"' in pyproject
+
+
+def test_the_program_is_mit_licensed_by_its_author() -> None:
+    assert __license__ == "MIT"
+    text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert text.startswith("MIT License") and f"Copyright (c) 2026 {__author__}" in text
+    assert "WITHOUT WARRANTY OF ANY KIND" in text
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'license = "MIT"' in pyproject and 'license-files = ["LICENSE"]' in pyproject
 
 
 def test_about_text(tmp_path: Path) -> None:
     text = about_text(tmp_path)
-    assert f"OpenDRS {__version__}" in text and "作者：windasd" in text
+    assert f"OpenDRS {__version__}" in text and "作者：windasd" in text and "授權：MIT" in text
     assert str(tmp_path) in text and "Python" in text and "PySide6" in text
 
 
 def test_about_dialog_shows_and_copies(app: QApplication, tmp_path: Path) -> None:
     dialog = AboutDialog(data_dir=tmp_path)
     assert dialog.version.text() == __version__ and dialog.author.text() == "windasd"
+    assert dialog.license.text() == "MIT"
     copied = dialog.copy_info()
     assert QGuiApplication.clipboard().text() == copied and "windasd" in copied
     assert dialog.copy.text() == "已複製"

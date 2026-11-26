@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __author__, __url__, __version__, hardware
+from .. import __author__, __license__, __url__, __version__, hardware
 from ..settings import default_dir
 from . import theme
 
@@ -42,6 +42,7 @@ def about_text(data_dir: Path | None = None) -> str:
     return "\n".join([
         f"{APP_NAME} {__version__}",
         f"作者：{__author__}",
+        f"授權：{__license__}",
         f"網站：{__url__}",
         f"支援機型：{RADIO}",
         f"執行環境：{environment()}",
@@ -75,6 +76,8 @@ class AboutDialog(QDialog):
 
         self.version = QLabel(__version__)
         self.author = QLabel(__author__)
+        self.license = QLabel(__license__)
+        self.license.setToolTip("授權全文：程式資料夾的 licenses\\OpenDRS-LICENSE.txt")
         self.website = QLabel(f'<a href="{__url__}">{__url__}</a>')
         self.website.setOpenExternalLinks(True)
         self.website.setToolTip("原始碼、問題回報與新版本下載")
@@ -83,6 +86,7 @@ class AboutDialog(QDialog):
         form = QFormLayout()
         form.addRow("版本", self.version)
         form.addRow("作者", self.author)
+        form.addRow("授權", self.license)
         form.addRow("網站", self.website)
         form.addRow("支援機型", _wrapped(RADIO))
         form.addRow("執行環境", _wrapped(environment()))

@@ -107,6 +107,15 @@ def test_version_resource_loads_in_pyinstaller(tmp_path: Path) -> None:
     assert "OpenDRS" in str(info) and "windasd" in str(info)
 
 
+def test_release_ships_the_programs_own_licence_with_the_third_party_ones(tmp_path: Path) -> None:
+    pytest.importorskip("PyInstaller")  # add_licenses also copies PyInstaller's COPYING.txt
+    folder = tmp_path / "licenses"
+    build.add_licenses(folder)
+    assert (folder / "OpenDRS-LICENSE.txt").read_bytes() == (ROOT / "LICENSE").read_bytes()
+    notices = (folder / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    assert "OpenDRS-LICENSE.txt" in notices and "MIT" in notices
+
+
 def test_wrong_release_tag_stops_before_building(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["build.py", "--expect-tag", "v9.9.9"])
     monkeypatch.setattr(build, "run_pyinstaller", lambda: pytest.fail("must not build"))

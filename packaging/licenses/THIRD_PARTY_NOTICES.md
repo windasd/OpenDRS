@@ -1,5 +1,8 @@
 # 第三方元件授權 / Third-party notices
 
+OpenDRS 本身以 MIT 授權釋出，全文見同一資料夾的 `OpenDRS-LICENSE.txt`。
+OpenDRS itself is released under the MIT License; see `OpenDRS-LICENSE.txt`.
+
 `OpenDRS.exe` 由 PyInstaller 打包，隨附下列元件（位於 `_internal\`）。授權全文在同一個 `licenses\` 資料夾。
 
 | 元件 | 授權 | 全文 | 原始碼 |
